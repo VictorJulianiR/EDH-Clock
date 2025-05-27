@@ -295,6 +295,7 @@
                     <li>Tap your player quadrant to pass priority.</li>
                     <li>Tap your player quadrant when it's not your turn to get priority and bypass turn order.</li>
                     <li>The central button pauses or resumes the current player's timer.</li>
+                    <li>Pressing Spacebar on a keyboard acts like tapping the current active player's quadrant (passes turn if running, resumes/starts if paused).</li>
                     <li>If a player's time reaches 00:00, they are automatically eliminated.</li>
                     <li>Press and hold a player's quadrant for 3 seconds to manually eliminate them. Their time will be kept, but they are out of play.</li>
                     <li>Use the ⚙️ icon to access settings and reset the game.</li>
@@ -414,6 +415,7 @@
         }
         
         function isPlayerEffectivelyOutOfGame(playerIndex) {
+            if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return true; // Guard against invalid index
             const q = getQuadrantDOM(playerIndex);
             return playerTimes[playerIndex] <= 0 || (q && q.classList.contains('timed-out-player'));
         }
@@ -556,51 +558,77 @@
             updateDisplay();
         }
 
+        // *** NEW FUNCTION ***
+        function passTurnFromActivePlayer() {
+            if (activePlayerIndex === -1 || isPaused) {
+                console.warn("Pass turn attempted when no player is active or game is paused.");
+                return;
+            }
+
+            if (isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                console.warn("Active player is out of game, cannot pass turn.");
+                // This case should ideally be prevented before calling, but good to have a guard.
+                // If it happens, perhaps just pause the game.
+                if (!isPaused) togglePause(); // This will pause the game.
+                return;
+            }
+
+            stopAllTimers();
+            let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
+            let attempts = 0;
+            while (isPlayerEffectivelyOutOfGame(nextPlayer) && attempts < MAX_PLAYERS) {
+                nextPlayer = (nextPlayer + 1) % MAX_PLAYERS;
+                attempts++;
+            }
+
+            if (attempts < MAX_PLAYERS && !isPlayerEffectivelyOutOfGame(nextPlayer)) {
+                startTimerForPlayer(nextPlayer);
+            } else {
+                // No other active players remaining
+                isPaused = true;
+                activePlayerIndex = -1; // No one is active now
+                alert("No other active players remaining. Game paused.");
+                updateDisplay();
+            }
+        }
+
+
         function handlePressStart(event, playerIndex) {
             const quadrant = getQuadrantDOM(playerIndex);
             if (!quadrant || isPlayerEffectivelyOutOfGame(playerIndex)) {
                 return;
             }
 
-            // Only preventDefault for mousedown to stop text selection.
-            // For touchstart, we DO NOT preventDefault, to allow 'click' to fire for taps.
             if (event.type === 'mousedown') {
                 event.preventDefault();
             }
 
             clearTimeout(longPressTimers[playerIndex]);
-            longPressActionTakenFlags[playerIndex] = false; // Reset flag
+            longPressActionTakenFlags[playerIndex] = false; 
 
             quadrant.classList.add('long-pressing');
 
             longPressTimers[playerIndex] = setTimeout(() => {
-                // Check if still pressing (e.g., mouse hasn't left, touch hasn't cancelled)
                 if (quadrant.classList.contains('long-pressing')) {
                     manuallyDisablePlayer(playerIndex);
                     longPressActionTakenFlags[playerIndex] = true;
-                    quadrant.classList.remove('long-pressing'); // Feedback handled
+                    quadrant.classList.remove('long-pressing'); 
                 }
-                longPressTimers[playerIndex] = null; // Mark timer as processed
+                longPressTimers[playerIndex] = null; 
             }, LONG_PRESS_DURATION);
         }
 
         function handlePressEnd(event, playerIndex) {
-            // This function is called on mouseup, touchend, mouseleave, touchcancel.
             const quadrant = getQuadrantDOM(playerIndex);
 
-            // If the timer is still pending (i.e., longPressTimers[playerIndex] has an ID),
-            // it means the long press duration wasn't reached or was interrupted.
             if (longPressTimers[playerIndex]) {
                 clearTimeout(longPressTimers[playerIndex]);
-                longPressTimers[playerIndex] = null; // Mark timer as cleared, didn't fire action.
+                longPressTimers[playerIndex] = null; 
             }
 
             if (quadrant) {
                 quadrant.classList.remove('long-pressing');
             }
-            // For 'touchend' (and 'mouseup'), if preventDefault was not called on 'touchstart' (or 'mousedown'),
-            // a 'click' event should follow. We let handleQuadrantClick manage the tap action.
-            // The longPressActionTakenFlags[playerIndex] will be checked by handleQuadrantClick.
         }
 
 
@@ -608,10 +636,8 @@
             const clickedQuadrant = event.currentTarget;
             const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
 
-            // If a long press action was just completed for this player,
-            // this click event is subsequent to it. Consume the flag and ignore this click.
             if (longPressActionTakenFlags[clickedPlayerIndex]) {
-                longPressActionTakenFlags[clickedPlayerIndex] = false; // Reset flag
+                longPressActionTakenFlags[clickedPlayerIndex] = false; 
                 return;
             }
 
@@ -625,32 +651,17 @@
 
             if (isPaused) { 
                 startTimerForPlayer(clickedPlayerIndex); 
-                return; // startTimerForPlayer will call updateDisplay
+                return; 
             }
 
             // Game is running (not paused)
             if (activePlayerIndex === clickedPlayerIndex) { 
                 // Player taps their own quadrant to pass turn
-                stopAllTimers(); 
-                let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
-                let attempts = 0;
-                while(isPlayerEffectivelyOutOfGame(nextPlayer) && attempts < MAX_PLAYERS) {
-                    nextPlayer = (nextPlayer + 1) % MAX_PLAYERS; 
-                    attempts++;
-                }
-                if (!isPlayerEffectivelyOutOfGame(nextPlayer)) {
-                    startTimerForPlayer(nextPlayer);
-                } else { 
-                    isPaused = true; 
-                    activePlayerIndex = -1; 
-                    alert("No other active players remaining.");
-                    updateDisplay(); // Update display as no timer will start
-                }
+                passTurnFromActivePlayer(); // *** MODIFIED HERE ***
             } else { 
                  // Player taps another quadrant (not their own active one) to take priority
                  startTimerForPlayer(clickedPlayerIndex);
             }
-            // updateDisplay(); // Called by startTimerForPlayer or explicitly in the "no other players" branch
         }
 
         function togglePause() {
@@ -665,7 +676,7 @@
                 } else {
                     playerToStartCandidate = currentTurnPlayerIndex; 
                     if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
-                         playerToStartCandidate = 0;
+                         playerToStartCandidate = 0; // Fallback to Player 0 if currentTurn is out
                     }
                 }
 
@@ -679,7 +690,7 @@
                     startTimerForPlayer(playerToStartCandidate);
                 } else { 
                     alert("All players are out of the game. Reset or adjust settings.");
-                    isPaused = true;
+                    isPaused = true; // Ensure it stays paused if no one can start
                     activePlayerIndex = -1;
                     updateDisplay(); 
                 }
@@ -695,17 +706,9 @@
         document.querySelectorAll('.quadrant').forEach(quad => {
             const playerIndex = parseInt(quad.dataset.playerIndex);
             
-            quad.addEventListener('click', handleQuadrantClick); // Main handler for tap actions
+            quad.addEventListener('click', handleQuadrantClick); 
 
-            // Long press listeners
             quad.addEventListener('mousedown', (e) => handlePressStart(e, playerIndex));
-            // For touchstart, passive: false is needed if handlePressStart *might* call preventDefault.
-            // Since our handlePressStart only calls it for 'mousedown', for 'touchstart' it doesn't.
-            // However, to be safe with a shared handler or future changes, passive: false is safer.
-            // If handlePressStart *never* calls preventDefault for touch, passive: true is better.
-            // Given the current logic (no preventDefault for touchstart in handlePressStart), passive: true would be fine.
-            // But the original code used passive: false, so let's stick to that to ensure no unexpected regressions if
-            // preventDefault were added back for touchstart for other reasons (e.g. scroll prevention on drag).
             quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false });
 
             quad.addEventListener('mouseup', (e) => handlePressEnd(e, playerIndex));
@@ -714,6 +717,67 @@
             quad.addEventListener('touchcancel', (e) => handlePressEnd(e, playerIndex));
             
             quad.addEventListener('contextmenu', (e) => e.preventDefault());
+        });
+
+        // *** NEW EVENT LISTENER FOR SPACEBAR ***
+        document.addEventListener('keydown', (event) => {
+            const activeElement = document.activeElement;
+            const isInputActive = activeElement && 
+                                  (activeElement.tagName === 'INPUT' || 
+                                   activeElement.tagName === 'TEXTAREA' || 
+                                   activeElement.isContentEditable);
+            const isModalOpen = settingsModal.style.display === 'flex';
+
+            if (isModalOpen || isInputActive) {
+                // Don't interfere if user is typing in an input or settings modal is open
+                return; 
+            }
+
+            if (event.key === ' ' || event.code === 'Space') {
+                event.preventDefault(); // Prevent default spacebar action (e.g., scrolling)
+                
+                initAudioContext(); // Ensure audio context is ready for potential sounds
+                attemptFullscreenOnMobileLandscape(); // Good practice for interaction
+
+                if (!isPaused && activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                    // Scenario 1: Game running, current player's timer is active. Spacebar passes their turn.
+                    passTurnFromActivePlayer();
+                } else if (isPaused) {
+                    // Scenario 2 & 3: Game is paused. Spacebar acts like the "relevant" player taps their quadrant to start/resume their timer.
+                    let playerToStartCandidate;
+
+                    if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                        // If there was a last active player who is still in the game, they "own" the pause.
+                        playerToStartCandidate = activePlayerIndex;
+                    } else {
+                        // Otherwise, the "current turn player" (e.g., P0 at start) owns it.
+                        // Or, if currentTurnPlayer is out, find the next available one.
+                        playerToStartCandidate = currentTurnPlayerIndex; 
+                        if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
+                            playerToStartCandidate = 0; // Fallback to Player 0 if currentTurn is out and try from there
+                        }
+                        
+                        let attempts = 0;
+                        while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
+                            playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
+                            attempts++;
+                        }
+                    }
+
+                    // After finding a candidate, check if they are valid
+                    if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
+                        startTimerForPlayer(playerToStartCandidate); // This will set isPaused = false
+                    } else {
+                        // All players are out of the game or no one could be started.
+                        alert("No player can be started. Reset or adjust settings.");
+                        playBeep(200, 0.15, 'sawtooth', 0.2); // Optional: "fail" sound
+                    }
+                } else {
+                    // Game is not paused, but also no valid active player (e.g., all timed out but game not formally paused)
+                    // Or some other unusual state. A soft "error" or "inaction" beep.
+                    playBeep(220, 0.1, 'sine', 0.2);
+                }
+            }
         });
 
 
@@ -754,7 +818,7 @@
             fullscreenAttemptedInLandscape = false;
             gameHasStartedOnce = false; 
             longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i]));
-            longPressActionTakenFlags = [false, false, false, false]; // Reset flags
+            longPressActionTakenFlags = [false, false, false, false]; 
 
             document.querySelectorAll('.quadrant').forEach(q => {
                 q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing');
@@ -765,12 +829,10 @@
         }
 
         function getDefaultBgForPlayer(logicalIndex) {
-            // Corrected player indexing for CSS variables (1-based) vs logicalIndex (0-based)
             const playerNum = logicalIndex + 1;
             const startVarName = `--p${playerNum}-color-start`;
             const endVarName = `--p${playerNum}-color-end`;
             
-            // Get computed style if available, otherwise fallback to default palette from :root
             let startVar = rootStyle.getPropertyValue(startVarName).trim();
             let endVar = rootStyle.getPropertyValue(endVarName).trim();
 
@@ -799,21 +861,12 @@
                 colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
                 colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
                 colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1'; 
-                // Corrected mapping for P3 and P4 colors to their respective input fields
-                // Quadrant visual layout is P1, P2, P4, P3 (bottom-left is P4, bottom-right is P3)
-                // Data player index mapping: P1=0, P2=1, P3=2, P4=3
-                // Input fields are for P1, P2, P3, P4.
-                // CSS variables are --p1, --p2, --p3, --p4.
-                // colorStartInputs[2] is for Player 3 (index 2)
-                // colorStartInputs[3] is for Player 4 (index 3)
-                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C'; // Player 3 data-player-index="2"
-                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';   // Player 3
-                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';// Player 4 data-player-index="3"
-                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';   // Player 4
+                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C'; 
+                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
+                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
+                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';  
             } else {
                 initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
-                 // Default colors are set in the input fields' HTML `value` attributes
-                 // and will be picked up by applyAndResetGame if nothing is in localStorage.
             }
             applyAndResetGame(); 
         }
