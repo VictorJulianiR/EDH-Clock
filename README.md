@@ -1,12 +1,10 @@
-![image](https://github.com/user-attachments/assets/63c25c0d-cd26-435a-b765-d74a2e103e3c)# EDH Clock - A Mobile-Friendly cEDH Chess Clock
+# EDH Clock - A Mobile-Friendly cEDH Chess Clock
 
 A simple, mobile-first web application designed as a chess clock for Commander (EDH) and cEDH (Competitive Elder Dragon Highlander) Magic: The Gathering games. It features four player quadrants, configurable timers and colors, and priority-passing logic tailored for multiplayer games.
 
 **Live Site:** [https://victorjulianir.github.io/EDH-Clock/](https://victorjulianir.github.io/EDH-Clock/)
 
-![Screenshot of EDH Clock](![image](https://github.com/user-attachments/assets/0d5aed59-16fc-4863-83f2-eb09d179460c)
-)
-
+![image](https://github.com/user-attachments/assets/63c25c0d-cd26-435a-b765-d74a2e103e3c)
 
 ## Features
 
