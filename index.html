@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>cEDH Clock Fullscreen Pro</title>
+    <title>cEDH Clock Fullscreen Pro (20min)</title>
     <style>
         :root {
             --p1-color-start: #D32F2F;
@@ -20,10 +20,10 @@
             --active-glow-color: rgba(255, 255, 0, 0.8);
             
             --pause-icon-color: #FFFFFF;
-            --pause-icon-stroke-color: rgba(0, 0, 0, 0.65); /* Stroke for the pause icon */
+            --pause-icon-stroke-color: rgba(0, 0, 0, 0.65);
             --pause-icon-shadow-color: rgba(0,0,0,0.5);
 
-            --settings-bg: #424242; /* Renamed from --pause-bg for clarity */
+            --settings-bg: #424242;
             --settings-hover-bg: #616161;
             --settings-icon-color: #E0E0E0;
         }
@@ -34,7 +34,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh; /* Or 100svh for dynamic viewport height */
+            height: 100vh;
             width: 100vw;
             margin: 0;
             background-color: #212121;
@@ -117,26 +117,25 @@
             height: 20vmin; /* Hit area height */
             max-width: 100px;
             max-height: 100px;
-            background-color: transparent; /* Visual background removed */
-            color: var(--pause-icon-color); /* Icon color */
+            background-color: transparent;
+            color: var(--pause-icon-color);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(40px, 12vmin, 70px); /* Icon size */
+            font-size: clamp(40px, 12vmin, 70px);
             cursor: pointer;
             user-select: none;
-            border-radius: 50%; /* Maintains circular hit area if needed, less relevant if bg transparent */
+            border-radius: 50%;
             z-index: 10;
-            transition: transform 0.1s ease; /* Only transform for active state */
+            transition: transform 0.1s ease;
             
-            /* Stroke and Shadow for the icon (text) */
             -webkit-text-stroke: 1.5px var(--pause-icon-stroke-color);
-            text-stroke: 1.5px var(--pause-icon-stroke-color); /* Standard, but -webkit- is key */
-            paint-order: stroke fill; /* Draw stroke behind the fill of the text */
+            text-stroke: 1.5px var(--pause-icon-stroke-color);
+            paint-order: stroke fill;
             text-shadow: 2px 2px 5px var(--pause-icon-shadow-color);
         }
         #pause-button:active {
-            transform: translate(-50%, -50%) scale(0.92); /* Feedback for press */
+            transform: translate(-50%, -50%) scale(0.92);
         }
 
         #settings-toggle {
@@ -319,7 +318,7 @@
         <div class="settings-content">
             <h2>Settings</h2>
             <label for="initial-time">Initial Time (minutes):</label>
-            <input type="number" id="initial-time" value="40" min="1">
+            <input type="number" id="initial-time" value="20" min="1"> <!-- Default value changed here -->
 
             <div class="color-setting-group">
                 <label for="p1-color-start">Player 1 Start:</label>
@@ -354,14 +353,19 @@
     </div>
 
     <script>
+        // --- CONFIGURABLE CONSTANTS ---
+        const DEFAULT_INITIAL_TIME_MINUTES = 20; // <<<====== YOUR CONFIGURABLE CONSTANT HERE
+        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsFullscreenPro_v2'; // Updated key if needed
+        // --- END CONFIGURABLE CONSTANTS ---
+
         const MAX_PLAYERS = 4;
         let playerTimes = [];
         let activePlayerIndex = -1;
         let currentTurnPlayerIndex = 0;
         let timerInterval = null;
         let isPaused = true;
-        let initialTimeMinutes = 20;
-        let fullscreenAttemptedInLandscape = false; // Flag for fullscreen attempt
+        let initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES; // Use the constant
+        let fullscreenAttemptedInLandscape = false;
 
         const quadrantDOMs = {
             p0: document.getElementById('player1'),
@@ -398,29 +402,24 @@
         ];
         const rootStyle = document.documentElement.style;
 
-        // --- Fullscreen API Helper ---
         function goFullScreen() {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
-            } else if (elem.webkitRequestFullscreen) { /* Safari */
+            } else if (elem.webkitRequestFullscreen) { 
                 elem.webkitRequestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode (webkit): ${err.message} (${err.name})`));
-            } else if (elem.msRequestFullscreen) { /* IE11 */
-                elem.msRequestFullscreen(); // IE doesn't return a promise
+            } else if (elem.msRequestFullscreen) { 
+                elem.msRequestFullscreen(); 
             }
         }
 
         function attemptFullscreenOnMobileLandscape() {
             if (fullscreenAttemptedInLandscape) return;
-
             const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
             if (!isMobileDevice) return;
-
             const isLandscape = window.matchMedia("(orientation: landscape)").matches;
             const isCurrentlyFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-
             if (isLandscape && !isCurrentlyFullscreen) {
-                console.log("Attempting fullscreen for mobile landscape.");
                 goFullScreen();
                 fullscreenAttemptedInLandscape = true; 
             }
@@ -438,8 +437,6 @@
         } else {
             window.addEventListener('orientationchange', handleOrientationChangeForFlagReset);
         }
-        // --- End Fullscreen API ---
-
 
         function formatTime(totalSeconds) {
             if (totalSeconds < 0) totalSeconds = 0;
@@ -451,19 +448,14 @@
         function updateDisplay() {
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
-                
                 let qElement;
                 if (i === 0) qElement = quadrantDOMs.p0;
                 else if (i === 1) qElement = quadrantDOMs.p1;
                 else if (i === 2) qElement = quadrantDOMs.p2;
                 else if (i === 3) qElement = quadrantDOMs.p3;
-
                 if (qElement) {
-                    if (i === activePlayerIndex && !isPaused) {
-                        qElement.classList.add('active');
-                    } else {
-                        qElement.classList.remove('active');
-                    }
+                    if (i === activePlayerIndex && !isPaused) qElement.classList.add('active');
+                    else qElement.classList.remove('active');
                 }
             }
             pauseButton.textContent = isPaused ? '▶️' : '⏸️';
@@ -476,22 +468,16 @@
         }
 
         function startTimerForPlayer(playerIndex) {
-            // Try fullscreen if it's a "start game" action
-            if ((activePlayerIndex === -1 && isPaused) || // Game not started, and is paused
-                (isPaused && activePlayerIndex === playerIndex && !timerInterval) ) { // Resuming this player who was paused
+            if ((activePlayerIndex === -1 && isPaused) || (isPaused && activePlayerIndex === playerIndex && !timerInterval) ) {
                 attemptFullscreenOnMobileLandscape();
             }
-
             stopAllTimers(); 
             activePlayerIndex = playerIndex;
             currentTurnPlayerIndex = playerIndex; 
             isPaused = false;
-
             if (playerTimes[activePlayerIndex] <= 0) {
-                updateDisplay();
-                return;
+                updateDisplay(); return;
             }
-            
             timerInterval = setInterval(() => {
                 if (!isPaused && playerTimes[activePlayerIndex] > 0) {
                     playerTimes[activePlayerIndex]--;
@@ -503,9 +489,7 @@
                     }
                     updateDisplay();
                 } else if (playerTimes[activePlayerIndex] <= 0) {
-                    stopAllTimers();
-                    isPaused = true;
-                    updateDisplay();
+                    stopAllTimers(); isPaused = true; updateDisplay();
                 }
             }, 1000);
             updateDisplay();
@@ -514,62 +498,43 @@
         function handleQuadrantClick(event) {
             const clickedQuadrant = event.currentTarget;
             const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
-
             if (isPaused && activePlayerIndex !== clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
-                // Attempt fullscreen when starting by clicking a quadrant from paused state
                 attemptFullscreenOnMobileLandscape();
-                startTimerForPlayer(clickedPlayerIndex);
-                return;
+                startTimerForPlayer(clickedPlayerIndex); return;
             }
             if (isPaused && activePlayerIndex === clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
-                 // Attempt fullscreen when resuming own quadrant from paused state
                 attemptFullscreenOnMobileLandscape();
-                isPaused = false;
-                startTimerForPlayer(clickedPlayerIndex); 
-                return;
+                isPaused = false; startTimerForPlayer(clickedPlayerIndex); return;
             }
             if (isPaused) return;
-
-
             if (activePlayerIndex === clickedPlayerIndex) {
                 stopAllTimers();
                 currentTurnPlayerIndex = (activePlayerIndex + 1) % MAX_PLAYERS;
                 let attempts = 0;
                 while(playerTimes[currentTurnPlayerIndex] <= 0 && attempts < MAX_PLAYERS) {
-                    currentTurnPlayerIndex = (currentTurnPlayerIndex + 1) % MAX_PLAYERS;
-                    attempts++;
+                    currentTurnPlayerIndex = (currentTurnPlayerIndex + 1) % MAX_PLAYERS; attempts++;
                 }
-                if (playerTimes[currentTurnPlayerIndex] > 0) {
-                     startTimerForPlayer(currentTurnPlayerIndex);
-                } else {
-                    isPaused = true; 
-                    activePlayerIndex = -1; 
-                    updateDisplay();
+                if (playerTimes[currentTurnPlayerIndex] > 0) startTimerForPlayer(currentTurnPlayerIndex);
+                else {
+                    isPaused = true; activePlayerIndex = -1; updateDisplay();
                     alert("No other players with time remaining to pass to.");
                 }
             } else {
-                if (playerTimes[clickedPlayerIndex] > 0) {
-                    startTimerForPlayer(clickedPlayerIndex);
-                } else {
-                    alert(`Player ${clickedPlayerIndex + 1} is out of time and cannot take priority.`);
-                }
+                if (playerTimes[clickedPlayerIndex] > 0) startTimerForPlayer(clickedPlayerIndex);
+                else alert(`Player ${clickedPlayerIndex + 1} is out of time and cannot take priority.`);
             }
         }
 
         function togglePause() {
             if (activePlayerIndex === -1 && isPaused) { 
                 if (playerTimes[0] > 0) {
-                    attemptFullscreenOnMobileLandscape(); // Attempt fullscreen when starting with pause button
+                    attemptFullscreenOnMobileLandscape();
                     startTimerForPlayer(0);
-                } else {
-                    alert("Cannot start, Player 1 has no time. Reset or adjust settings.");
-                }
+                } else alert("Cannot start, Player 1 has no time. Reset or adjust settings.");
                 return;
             }
-
             isPaused = !isPaused;
             if (!isPaused && activePlayerIndex !== -1) {
-                 // Attempt fullscreen when unpausing with pause button
                 attemptFullscreenOnMobileLandscape();
                 startTimerForPlayer(activePlayerIndex); 
             }
@@ -577,15 +542,14 @@
         }
         
         pauseButton.addEventListener('click', togglePause);
-
-        Object.values(quadrantDOMs).forEach(quad => {
-            quad.addEventListener('click', handleQuadrantClick);
-        });
+        Object.values(quadrantDOMs).forEach(quad => quad.addEventListener('click', handleQuadrantClick));
 
         function applyAndResetGame() {
-            initialTimeMinutes = parseInt(initialTimeInput.value) || 20;
-            if (initialTimeMinutes < 1) initialTimeMinutes = 1;
-            
+            // Use value from input for initialTimeMinutes, but default to the constant if input is invalid
+            let timeFromInput = parseInt(initialTimeInput.value);
+            initialTimeMinutes = (timeFromInput && timeFromInput >=1) ? timeFromInput : DEFAULT_INITIAL_TIME_MINUTES;
+            if (initialTimeMinutes < 1) initialTimeMinutes = 1; // Ensure minimum 1 minute if somehow invalid
+
             rootStyle.setProperty('--p1-color-start', colorStartInputs[0].value);
             rootStyle.setProperty('--p1-color-end', colorEndInputs[0].value);
             rootStyle.setProperty('--p2-color-start', colorStartInputs[1].value);
@@ -600,32 +564,35 @@
             quadrantDOMs.p2.style.backgroundImage = `linear-gradient(135deg, var(--p3-color-start), var(--p3-color-end))`;
             quadrantDOMs.p3.style.backgroundImage = `linear-gradient(135deg, var(--p4-color-start), var(--p4-color-end))`;
 
-            localStorage.setItem('cEDHClockSettingsFullscreenPro', JSON.stringify({ // New key for new settings format
-                initialTime: initialTimeMinutes,
+            localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify({
+                initialTime: initialTimeMinutes, // Save the actually applied time
                 p1ColorStart: colorStartInputs[0].value, p1ColorEnd: colorEndInputs[0].value,
                 p2ColorStart: colorStartInputs[1].value, p2ColorEnd: colorEndInputs[1].value,
                 p3ColorStart: colorStartInputs[2].value, p3ColorEnd: colorEndInputs[2].value,
                 p4ColorStart: colorStartInputs[3].value, p4ColorEnd: colorEndInputs[3].value,
             }));
-
             resetGame();
         }
 
         function resetGame() {
             stopAllTimers();
+            // initialTimeMinutes is already set by loadSettings or applyAndResetGame
             playerTimes = Array(MAX_PLAYERS).fill(initialTimeMinutes * 60);
             activePlayerIndex = -1; 
             currentTurnPlayerIndex = 0; 
             isPaused = true;
-            fullscreenAttemptedInLandscape = false; // Reset flag on game reset
+            fullscreenAttemptedInLandscape = false;
             updateDisplay();
         }
 
         function loadSettings() {
-            const savedSettings = localStorage.getItem('cEDHClockSettingsFullscreenPro');
+            const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                initialTimeInput.value = settings.initialTime || 20;
+                // Load saved time, but if not present or invalid, fallback to default constant
+                initialTimeMinutes = (settings.initialTime && settings.initialTime >=1) ? settings.initialTime : DEFAULT_INITIAL_TIME_MINUTES;
+                initialTimeInput.value = initialTimeMinutes;
+                
                 colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
                 colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
                 colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
@@ -634,8 +601,13 @@
                 colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';
                 colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
                 colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';
+            } else {
+                // No saved settings, use the default constant for initial time
+                initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES;
+                initialTimeInput.value = initialTimeMinutes; // Also set the input field
+                // Default colors will be applied from HTML input values if nothing saved
             }
-            applyAndResetGame();
+            applyAndResetGame(); // This will apply loaded/default settings and reset the game state
         }
 
         settingsToggleButton.addEventListener('click', () => {
