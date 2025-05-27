@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>cEDH Clock Fullscreen Pro (20min)</title>
+    <title>cEDH Clock Enhanced v2</title>
     <style>
         :root {
             --p1-color-start: #D32F2F;
@@ -26,6 +26,11 @@
             --settings-bg: #424242;
             --settings-hover-bg: #616161;
             --settings-icon-color: #E0E0E0;
+
+            --timed-out-stripe1: rgba(0,0,0,0.35);
+            --timed-out-stripe2: rgba(0,0,0,0.45);
+            --timed-out-bg-start: #666666; 
+            --timed-out-bg-end: #4c4c4c;   
         }
 
         body {
@@ -59,7 +64,7 @@
             justify-content: center;
             cursor: pointer;
             user-select: none;
-            transition: background 0.4s ease, box-shadow 0.3s ease;
+            transition: background 0.4s ease, box-shadow 0.3s ease, opacity 0.3s ease;
             position: relative;
             font-weight: bold;
             text-shadow: 0 0 5px rgba(0,0,0,0.6), 0 0 10px rgba(0,0,0,0.4);
@@ -67,7 +72,7 @@
             box-sizing: border-box;
         }
 
-        .quadrant::before {
+        .quadrant::before { /* Inactive overlay */
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -77,7 +82,7 @@
             z-index: 1;
         }
         
-        .quadrant > * {
+        .quadrant > * { /* Text and time */
             position: relative;
             z-index: 2;
         }
@@ -90,11 +95,39 @@
             box-shadow: inset 0 0 20px 5px var(--active-glow-color), 0 0 15px var(--active-glow-color);
         }
 
-        #player1 { background-image: linear-gradient(135deg, var(--p1-color-start), var(--p1-color-end)); }
-        #player2 { background-image: linear-gradient(135deg, var(--p2-color-start), var(--p2-color-end)); }
-        #player3 { background-image: linear-gradient(135deg, var(--p4-color-start), var(--p4-color-end)); }
-        #player4 { background-image: linear-gradient(135deg, var(--p3-color-start), var(--p3-color-end)); }
+        .quadrant.timed-out-player {
+            background-image: 
+                repeating-linear-gradient( 
+                    45deg,
+                    var(--timed-out-stripe1),
+                    var(--timed-out-stripe1) 15px,
+                    var(--timed-out-stripe2) 15px,
+                    var(--timed-out-stripe2) 30px
+                ),
+                linear-gradient(135deg, var(--timed-out-bg-start), var(--timed-out-bg-end)); 
+            cursor: not-allowed !important;
+            opacity: 0.7 !important; 
+            box-shadow: none !important; 
+        }
+        .quadrant.timed-out-player::before { 
+            opacity: 0 !important;
+        }
+        .quadrant.timed-out-player .player-name,
+        .quadrant.timed-out-player .time-display {
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+            opacity: 0.8;
+        }
 
+        @keyframes flash-timeout {
+            0%, 100% { filter: brightness(100%); transform: scale(1); }
+            25% { filter: brightness(180%) contrast(150%); transform: scale(1.02); }
+            50% { filter: brightness(60%); transform: scale(0.98); }
+            75% { filter: brightness(180%) contrast(150%); transform: scale(1.02); }
+        }
+        .timeout-flash-animation {
+            animation: flash-timeout 0.8s ease-in-out;
+        }
 
         .player-name {
             font-size: clamp(16px, 4vmin, 30px);
@@ -109,189 +142,67 @@
         }
 
         #pause-button {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20vmin; /* Hit area width */
-            height: 20vmin; /* Hit area height */
-            max-width: 100px;
-            max-height: 100px;
-            background-color: transparent;
-            color: var(--pause-icon-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(40px, 12vmin, 70px);
-            cursor: pointer;
-            user-select: none;
-            border-radius: 50%;
-            z-index: 10;
-            transition: transform 0.1s ease;
-            
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 18vmin; height: 18vmin; max-width: 100px; max-height: 100px;
+            background-color: transparent; color: var(--pause-icon-color);
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(40px, 12vmin, 70px); cursor: pointer; user-select: none;
+            border-radius: 50%; z-index: 10; transition: transform 0.1s ease;
             -webkit-text-stroke: 1.5px var(--pause-icon-stroke-color);
             text-stroke: 1.5px var(--pause-icon-stroke-color);
-            paint-order: stroke fill;
-            text-shadow: 2px 2px 5px var(--pause-icon-shadow-color);
+            paint-order: stroke fill; text-shadow: 2px 2px 5px var(--pause-icon-shadow-color);
         }
-        #pause-button:active {
-            transform: translate(-50%, -50%) scale(0.92);
-        }
+        #pause-button:active { transform: translate(-50%, -50%) scale(0.92); }
 
         #settings-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--settings-bg);
-            color: var(--settings-icon-color);
-            border: none;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: fixed; top: 20px; right: 20px; background: var(--settings-bg);
+            color: var(--settings-icon-color); border: none; width: 50px; height: 50px;
+            font-size: 24px; border-radius: 50%; cursor: pointer; z-index: 1001;
+            display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
             transition: background-color 0.2s ease, transform 0.1s ease;
         }
-        #settings-toggle:hover {
-            background-color: var(--settings-hover-bg);
-        }
-        #settings-toggle:active {
-            transform: scale(0.95);
-        }
-
+        #settings-toggle:hover { background-color: var(--settings-hover-bg); }
+        #settings-toggle:active { transform: scale(0.95); }
 
         #settings-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
-            -webkit-backdrop-filter: blur(8px);
-            backdrop-filter: blur(8px);
-            align-items: center;
-            justify-content: center;
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5); -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px); align-items: center; justify-content: center;
         }
-
         .settings-content {
-            background-color: rgba(50, 50, 50, 0.9);
-            margin: auto;
-            padding: 25px 30px;
-            border: 1px solid #555;
-            width: 85%;
-            max-width: 450px;
-            border-radius: 12px;
-            color: var(--text-color);
-            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            background-color: rgba(50, 50, 50, 0.9); margin: auto; padding: 25px 30px;
+            border: 1px solid #555; width: 85%; max-width: 450px; border-radius: 12px;
+            color: var(--text-color); box-shadow: 0 5px 25px rgba(0,0,0,0.3);
         }
-
-        .settings-content h2 {
-            margin-top: 0;
-            margin-bottom: 25px;
-            text-align: center;
-            font-size: 1.8em;
-            color: #fafafa;
-        }
-
-        .settings-content label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            font-size: 0.95em;
-            color: #ddd;
-        }
-        .settings-content .color-setting-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .settings-content .color-setting-group label {
-            flex-basis: 120px;
-            margin-bottom: 0;
-        }
+        .settings-content h2 { margin-top: 0; margin-bottom: 25px; text-align: center; font-size: 1.8em; color: #fafafa; }
+        .settings-content label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.95em; color: #ddd; }
+        .settings-content .color-setting-group { display: flex; align-items: center; margin-bottom: 15px; }
+        .settings-content .color-setting-group label { flex-basis: 120px; margin-bottom: 0; }
         .settings-content input[type="number"] {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 6px;
-            border: 1px solid #666;
-            background-color: #333;
-            color: var(--text-color);
-            box-sizing: border-box;
-            font-size: 1em;
+            width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #666;
+            background-color: #333; color: var(--text-color); box-sizing: border-box; font-size: 1em;
         }
         .settings-content input[type="color"] {
-            padding: 0;
-            border: 1px solid #666;
-            border-radius: 6px;
-            cursor: pointer;
-            height: 40px;
-            width: 60px;
-            margin-left: 10px;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background: none;
+            padding: 0; border: 1px solid #666; border-radius: 6px; cursor: pointer; height: 40px;
+            width: 60px; margin-left: 10px; -webkit-appearance: none; -moz-appearance: none; appearance: none; background: none;
         }
-        .settings-content input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border-radius: 5px;
-        }
-        .settings-content input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 5px;
-        }
-        .settings-content input[type="color"]::-moz-color-swatch {
-             border: none;
-             border-radius: 5px;
-        }
-
-
-        .settings-buttons {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 30px;
-        }
-
+        .settings-content input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 5px; }
+        .settings-content input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+        .settings-content input[type="color"]::-moz-color-swatch { border: none; border-radius: 5px; }
+        .settings-buttons { display: flex; justify-content: space-around; margin-top: 30px; }
         .settings-buttons button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 1em;
-            transition: background-color 0.2s ease, transform 0.1s ease;
+            padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: bold; font-size: 1em; transition: background-color 0.2s ease, transform 0.1s ease;
         }
-        .settings-buttons button:active {
-            transform: scale(0.97);
-        }
-        #apply-settings {
-            background-color: #4CAF50;
-            color: white;
-        }
-        #apply-settings:hover {
-            background-color: #45a049;
-        }
-        #close-settings {
-            background-color: #f44336;
-            color: white;
-        }
-        #close-settings:hover {
-            background-color: #e53935;
-        }
-
+        .settings-buttons button:active { transform: scale(0.97); }
+        #apply-settings { background-color: #4CAF50; color: white; }
+        #apply-settings:hover { background-color: #45a049; }
+        #close-settings { background-color: #f44336; color: white; }
+        #close-settings:hover { background-color: #e53935; }
     </style>
 </head>
 <body>
-
     <div id="clock-container">
         <div class="quadrant" id="player1" data-player-index="0">
             <span class="player-name">Player 1</span>
@@ -301,11 +212,11 @@
             <span class="player-name">Player 2</span>
             <span class="time-display" id="time2">00:00</span>
         </div>
-        <div class="quadrant" id="player3" data-player-index="3">
+        <div class="quadrant" id="player3" data-player-index="3"> 
             <span class="player-name">Player 4</span>
             <span class="time-display" id="time4">00:00</span>
         </div>
-        <div class="quadrant" id="player4" data-player-index="2">
+        <div class="quadrant" id="player4" data-player-index="2"> 
             <span class="player-name">Player 3</span>
             <span class="time-display" id="time3">00:00</span>
         </div>
@@ -318,7 +229,7 @@
         <div class="settings-content">
             <h2>Settings</h2>
             <label for="initial-time">Initial Time (minutes):</label>
-            <input type="number" id="initial-time" value="20" min="1"> <!-- Default value changed here -->
+            <input type="number" id="initial-time" value="20" min="1">
 
             <div class="color-setting-group">
                 <label for="p1-color-start">Player 1 Start:</label>
@@ -353,32 +264,76 @@
     </div>
 
     <script>
-        // --- CONFIGURABLE CONSTANTS ---
-        const DEFAULT_INITIAL_TIME_MINUTES = 20; // <<<====== YOUR CONFIGURABLE CONSTANT HERE
-        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsFullscreenPro_v2'; // Updated key if needed
-        // --- END CONFIGURABLE CONSTANTS ---
-
+        const DEFAULT_INITIAL_TIME_MINUTES = 20;
+        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2'; 
         const MAX_PLAYERS = 4;
         let playerTimes = [];
-        let activePlayerIndex = -1;
-        let currentTurnPlayerIndex = 0;
+        let playerOriginalBg = Array(MAX_PLAYERS).fill('');
+        let activePlayerIndex = -1; // Index of the currently active player, or last active if paused/timed out. -1 if game not started.
+        let currentTurnPlayerIndex = 0; // Index of player whose turn it is or would be next if starting from scratch.
         let timerInterval = null;
         let isPaused = true;
-        let initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES; // Use the constant
+        let initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES;
         let fullscreenAttemptedInLandscape = false;
+        let gameHasStartedOnce = false; 
 
-        const quadrantDOMs = {
-            p0: document.getElementById('player1'),
-            p1: document.getElementById('player2'),
-            p2: document.getElementById('player4'),
-            p3: document.getElementById('player3')
-        };
-        
+        let audioContext;
+        function initAudioContext() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) { console.warn("Web Audio API not supported."); }
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+        document.addEventListener('click', initAudioContext, { once: true });
+        document.addEventListener('touchstart', initAudioContext, { once: true });
+
+        function playBeep(frequency = 440, duration = 0.1, type = 'sine', volume = 0.3) {
+            if (!audioContext) { return; }
+            if (audioContext.state === 'suspended') { audioContext.resume(); }
+            try {
+                const o = audioContext.createOscillator(), g = audioContext.createGain();
+                o.connect(g); g.connect(audioContext.destination);
+                o.type = type; o.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                g.gain.setValueAtTime(volume, audioContext.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + duration);
+                o.start(audioContext.currentTime); o.stop(audioContext.currentTime + duration);
+            } catch (e) { console.error("Error playing beep:", e); }
+        }
+
+        const startupMelodyNotes = [
+            { freq: 392.00, duration: 0.075, delay: 0.0, type: 'square' },
+            { freq: 466.16, duration: 0.075, delay: 0.085, type: 'square' },
+            { freq: 523.25, duration: 0.075, delay: 0.170, type: 'square' },
+            { freq: 698.46, duration: 0.180, delay: 0.255, type: 'triangle' }
+        ];
+
+        function playStartupMelody() {
+            if (!audioContext) { return; }
+            if (audioContext.state === 'suspended') { audioContext.resume(); }
+            try {
+                const now = audioContext.currentTime;
+                const overallGain = audioContext.createGain();
+                overallGain.gain.setValueAtTime(0.15, now); 
+                overallGain.connect(audioContext.destination);
+                startupMelodyNotes.forEach(note => {
+                    const o = audioContext.createOscillator(), gn = audioContext.createGain();
+                    o.connect(gn); gn.connect(overallGain);
+                    o.type = note.type || 'square';
+                    o.frequency.setValueAtTime(note.freq, now + note.delay);
+                    gn.gain.setValueAtTime(1.0, now + note.delay);
+                    gn.gain.exponentialRampToValueAtTime(0.00001, now + note.delay + note.duration);
+                    o.start(now + note.delay); o.stop(now + note.delay + note.duration);
+                });
+            } catch (e) { console.error("Error playing startup melody:", e); }
+        }
+
         const timeDisplayElements = [
-            document.getElementById('time1'),
-            document.getElementById('time2'),
-            document.getElementById('time3'),
-            document.getElementById('time4')
+            document.getElementById('time1'), document.getElementById('time2'),
+            document.getElementById('time3'), document.getElementById('time4')
         ];
         
         const pauseButton = document.getElementById('pause-button');
@@ -389,45 +344,40 @@
         const initialTimeInput = document.getElementById('initial-time');
         
         const colorStartInputs = [
-            document.getElementById('p1-color-start-input'),
-            document.getElementById('p2-color-start-input'),
-            document.getElementById('p3-color-start-input'),
-            document.getElementById('p4-color-start-input')
+            document.getElementById('p1-color-start-input'), document.getElementById('p2-color-start-input'),
+            document.getElementById('p3-color-start-input'), document.getElementById('p4-color-start-input')
         ];
         const colorEndInputs = [
-            document.getElementById('p1-color-end-input'),
-            document.getElementById('p2-color-end-input'),
-            document.getElementById('p3-color-end-input'),
-            document.getElementById('p4-color-end-input')
+            document.getElementById('p1-color-end-input'), document.getElementById('p2-color-end-input'),
+            document.getElementById('p3-color-end-input'), document.getElementById('p4-color-end-input')
         ];
         const rootStyle = document.documentElement.style;
 
+        function getQuadrantDOM(playerIndex) {
+            return document.querySelector(`.quadrant[data-player-index="${playerIndex}"]`);
+        }
+
         function goFullScreen() {
             const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
-            } else if (elem.webkitRequestFullscreen) { 
-                elem.webkitRequestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode (webkit): ${err.message} (${err.name})`));
-            } else if (elem.msRequestFullscreen) { 
-                elem.msRequestFullscreen(); 
-            }
+            if (elem.requestFullscreen) elem.requestFullscreen().catch(err => console.warn("FS failed:", err));
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen().catch(err => console.warn("FS failed (webkit):", err));
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
         }
 
         function attemptFullscreenOnMobileLandscape() {
             if (fullscreenAttemptedInLandscape) return;
-            const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
-            if (!isMobileDevice) return;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+            if (!isMobile) return;
             const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-            const isCurrentlyFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-            if (isLandscape && !isCurrentlyFullscreen) {
+            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+            if (isLandscape && !isFS) {
                 goFullScreen();
                 fullscreenAttemptedInLandscape = true; 
             }
         }
         
         function handleOrientationChangeForFlagReset() {
-            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-            if (!isLandscape) {
+            if (!window.matchMedia("(orientation: landscape)").matches) {
                 fullscreenAttemptedInLandscape = false;
             }
         }
@@ -440,22 +390,21 @@
 
         function formatTime(totalSeconds) {
             if (totalSeconds < 0) totalSeconds = 0;
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
         function updateDisplay() {
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
-                let qElement;
-                if (i === 0) qElement = quadrantDOMs.p0;
-                else if (i === 1) qElement = quadrantDOMs.p1;
-                else if (i === 2) qElement = quadrantDOMs.p2;
-                else if (i === 3) qElement = quadrantDOMs.p3;
+                const qElement = getQuadrantDOM(i);
                 if (qElement) {
-                    if (i === activePlayerIndex && !isPaused) qElement.classList.add('active');
-                    else qElement.classList.remove('active');
+                    if (i === activePlayerIndex && !isPaused && playerTimes[i] > 0) {
+                        qElement.classList.add('active');
+                    } else {
+                        qElement.classList.remove('active');
+                    }
                 }
             }
             pauseButton.textContent = isPaused ? '▶️' : '⏸️';
@@ -464,32 +413,58 @@
         function stopAllTimers() {
             clearInterval(timerInterval);
             timerInterval = null;
-            Object.values(quadrantDOMs).forEach(q => q.classList.remove('active'));
+            document.querySelectorAll('.quadrant.active').forEach(q => q.classList.remove('active'));
+        }
+
+        function handleTimeout(playerIndex) {
+            playerTimes[playerIndex] = 0;
+            stopAllTimers();
+            isPaused = true; 
+            // activePlayerIndex remains the index of the timed-out player, important for togglePause logic
+
+            const timedOutQuadrant = getQuadrantDOM(playerIndex);
+            if (timedOutQuadrant) {
+                timedOutQuadrant.classList.remove('active');
+                timedOutQuadrant.classList.add('timed-out-player');
+                timedOutQuadrant.style.backgroundImage = ''; 
+                
+                timedOutQuadrant.classList.add('timeout-flash-animation');
+                setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
+            }
+
+            playBeep(880, 0.2, 'square', 0.4); 
+            playBeep(880, 0.2, 'square', 0.4); 
+            
+            alert(`Player ${playerIndex + 1} is out of time!`);
+            updateDisplay(); 
         }
 
         function startTimerForPlayer(playerIndex) {
-            if ((activePlayerIndex === -1 && isPaused) || (isPaused && activePlayerIndex === playerIndex && !timerInterval) ) {
-                attemptFullscreenOnMobileLandscape();
+            if (playerTimes[playerIndex] <= 0) { 
+                updateDisplay(); // Should not happen if called correctly, but good guard
+                return;
             }
+            
             stopAllTimers(); 
             activePlayerIndex = playerIndex;
-            currentTurnPlayerIndex = playerIndex; 
-            isPaused = false;
-            if (playerTimes[activePlayerIndex] <= 0) {
-                updateDisplay(); return;
+            currentTurnPlayerIndex = playerIndex; // The player whose turn it now is
+            isPaused = false; 
+            
+            if (!gameHasStartedOnce) {
+                initAudioContext(); 
+                playStartupMelody();
+                gameHasStartedOnce = true;
             }
+
             timerInterval = setInterval(() => {
                 if (!isPaused && playerTimes[activePlayerIndex] > 0) {
                     playerTimes[activePlayerIndex]--;
                     if (playerTimes[activePlayerIndex] <= 0) {
-                        playerTimes[activePlayerIndex] = 0;
-                        stopAllTimers();
-                        isPaused = true; 
-                        alert(`Player ${activePlayerIndex + 1} is out of time!`);
+                        handleTimeout(activePlayerIndex);
                     }
                     updateDisplay();
-                } else if (playerTimes[activePlayerIndex] <= 0) {
-                    stopAllTimers(); isPaused = true; updateDisplay();
+                } else if (playerTimes[activePlayerIndex] <= 0 && !isPaused) { 
+                    handleTimeout(activePlayerIndex);
                 }
             }, 1000);
             updateDisplay();
@@ -498,74 +473,105 @@
         function handleQuadrantClick(event) {
             const clickedQuadrant = event.currentTarget;
             const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
-            if (isPaused && activePlayerIndex !== clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
-                attemptFullscreenOnMobileLandscape();
-                startTimerForPlayer(clickedPlayerIndex); return;
+
+            if (playerTimes[clickedPlayerIndex] <= 0) {
+                alert(`Player ${clickedPlayerIndex + 1} is out of time.`);
+                return;
             }
-            if (isPaused && activePlayerIndex === clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
-                attemptFullscreenOnMobileLandscape();
-                isPaused = false; startTimerForPlayer(clickedPlayerIndex); return;
+            
+            initAudioContext(); 
+            attemptFullscreenOnMobileLandscape();
+
+            if (isPaused) { 
+                startTimerForPlayer(clickedPlayerIndex); 
+                return;
             }
-            if (isPaused) return;
-            if (activePlayerIndex === clickedPlayerIndex) {
-                stopAllTimers();
-                currentTurnPlayerIndex = (activePlayerIndex + 1) % MAX_PLAYERS;
+
+            if (activePlayerIndex === clickedPlayerIndex) { 
+                stopAllTimers(); 
+                let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
                 let attempts = 0;
-                while(playerTimes[currentTurnPlayerIndex] <= 0 && attempts < MAX_PLAYERS) {
-                    currentTurnPlayerIndex = (currentTurnPlayerIndex + 1) % MAX_PLAYERS; attempts++;
+                while(playerTimes[nextPlayer] <= 0 && attempts < MAX_PLAYERS) {
+                    nextPlayer = (nextPlayer + 1) % MAX_PLAYERS; 
+                    attempts++;
                 }
-                if (playerTimes[currentTurnPlayerIndex] > 0) startTimerForPlayer(currentTurnPlayerIndex);
-                else {
-                    isPaused = true; activePlayerIndex = -1; updateDisplay();
-                    alert("No other players with time remaining to pass to.");
+                if (playerTimes[nextPlayer] > 0) {
+                    startTimerForPlayer(nextPlayer);
+                } else { 
+                    isPaused = true; 
+                    activePlayerIndex = -1; // No one to pass to, game fully stops
+                    updateDisplay();
+                    alert("No other players with time remaining.");
                 }
-            } else {
-                if (playerTimes[clickedPlayerIndex] > 0) startTimerForPlayer(clickedPlayerIndex);
-                else alert(`Player ${clickedPlayerIndex + 1} is out of time and cannot take priority.`);
+            } else { 
+                 startTimerForPlayer(clickedPlayerIndex);
             }
         }
 
         function togglePause() {
-            if (activePlayerIndex === -1 && isPaused) { 
-                if (playerTimes[0] > 0) {
-                    attemptFullscreenOnMobileLandscape();
-                    startTimerForPlayer(0);
-                } else alert("Cannot start, Player 1 has no time. Reset or adjust settings.");
-                return;
+            initAudioContext();
+            attemptFullscreenOnMobileLandscape();
+
+            if (isPaused) { // Trying to PLAY
+                let playerToStartCandidate;
+
+                if (activePlayerIndex !== -1) {
+                    // If a player was active (even if they just timed out),
+                    // start searching from them.
+                    playerToStartCandidate = activePlayerIndex;
+                } else {
+                    // If game is fully stopped (activePlayerIndex is -1, e.g., after reset or all timed out),
+                    // start searching from currentTurnPlayerIndex (usually 0 after reset).
+                    playerToStartCandidate = currentTurnPlayerIndex;
+                }
+
+                let attempts = 0;
+                // Loop to find the next player with time, starting from playerToStartCandidate
+                while (playerTimes[playerToStartCandidate] <= 0 && attempts < MAX_PLAYERS) {
+                    playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
+                    attempts++;
+                }
+
+                if (playerTimes[playerToStartCandidate] > 0) { // Found a player with time
+                    // isPaused will be set to false inside startTimerForPlayer
+                    startTimerForPlayer(playerToStartCandidate);
+                } else { // All players checked (attempts === MAX_PLAYERS), none have time
+                    alert("All players are out of time. Reset or adjust settings.");
+                    // isPaused remains true. activePlayerIndex could be -1 or the last timed-out player.
+                    // currentTurnPlayerIndex will also be the index of a timed-out player or 0.
+                    updateDisplay(); // Ensure pause button icon is correct
+                }
+            } else { // Trying to PAUSE
+                isPaused = true;
+                stopAllTimers();
+                updateDisplay(); // Update pause button icon and active state
             }
-            isPaused = !isPaused;
-            if (!isPaused && activePlayerIndex !== -1) {
-                attemptFullscreenOnMobileLandscape();
-                startTimerForPlayer(activePlayerIndex); 
-            }
-            updateDisplay();
+            // updateDisplay() is called within startTimerForPlayer or explicitly above.
         }
         
         pauseButton.addEventListener('click', togglePause);
-        Object.values(quadrantDOMs).forEach(quad => quad.addEventListener('click', handleQuadrantClick));
+        document.querySelectorAll('.quadrant').forEach(quad => quad.addEventListener('click', handleQuadrantClick));
 
         function applyAndResetGame() {
-            // Use value from input for initialTimeMinutes, but default to the constant if input is invalid
             let timeFromInput = parseInt(initialTimeInput.value);
             initialTimeMinutes = (timeFromInput && timeFromInput >=1) ? timeFromInput : DEFAULT_INITIAL_TIME_MINUTES;
-            if (initialTimeMinutes < 1) initialTimeMinutes = 1; // Ensure minimum 1 minute if somehow invalid
+            if (initialTimeMinutes < 1) initialTimeMinutes = 1;
 
-            rootStyle.setProperty('--p1-color-start', colorStartInputs[0].value);
-            rootStyle.setProperty('--p1-color-end', colorEndInputs[0].value);
-            rootStyle.setProperty('--p2-color-start', colorStartInputs[1].value);
-            rootStyle.setProperty('--p2-color-end', colorEndInputs[1].value);
-            rootStyle.setProperty('--p3-color-start', colorStartInputs[2].value);
-            rootStyle.setProperty('--p3-color-end', colorEndInputs[2].value);
-            rootStyle.setProperty('--p4-color-start', colorStartInputs[3].value);
-            rootStyle.setProperty('--p4-color-end', colorEndInputs[3].value);
+            const playerColorVarNames = [ 
+                { start: '--p1-color-start', end: '--p1-color-end' }, 
+                { start: '--p2-color-start', end: '--p2-color-end' }, 
+                { start: '--p3-color-start', end: '--p3-color-end' }, 
+                { start: '--p4-color-start', end: '--p4-color-end' }  
+            ];
             
-            quadrantDOMs.p0.style.backgroundImage = `linear-gradient(135deg, var(--p1-color-start), var(--p1-color-end))`;
-            quadrantDOMs.p1.style.backgroundImage = `linear-gradient(135deg, var(--p2-color-start), var(--p2-color-end))`;
-            quadrantDOMs.p2.style.backgroundImage = `linear-gradient(135deg, var(--p3-color-start), var(--p3-color-end))`;
-            quadrantDOMs.p3.style.backgroundImage = `linear-gradient(135deg, var(--p4-color-start), var(--p4-color-end))`;
-
+            for (let i = 0; i < MAX_PLAYERS; i++) {
+                rootStyle.setProperty(playerColorVarNames[i].start, colorStartInputs[i].value);
+                rootStyle.setProperty(playerColorVarNames[i].end, colorEndInputs[i].value);
+                playerOriginalBg[i] = `linear-gradient(135deg, ${colorStartInputs[i].value}, ${colorEndInputs[i].value})`;
+            }
+            
             localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify({
-                initialTime: initialTimeMinutes, // Save the actually applied time
+                initialTime: initialTimeMinutes,
                 p1ColorStart: colorStartInputs[0].value, p1ColorEnd: colorEndInputs[0].value,
                 p2ColorStart: colorStartInputs[1].value, p2ColorEnd: colorEndInputs[1].value,
                 p3ColorStart: colorStartInputs[2].value, p3ColorEnd: colorEndInputs[2].value,
@@ -576,57 +582,89 @@
 
         function resetGame() {
             stopAllTimers();
-            // initialTimeMinutes is already set by loadSettings or applyAndResetGame
             playerTimes = Array(MAX_PLAYERS).fill(initialTimeMinutes * 60);
             activePlayerIndex = -1; 
             currentTurnPlayerIndex = 0; 
             isPaused = true;
             fullscreenAttemptedInLandscape = false;
+            gameHasStartedOnce = false; 
+
+            document.querySelectorAll('.quadrant').forEach(q => {
+                q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation');
+                const logicalIndex = parseInt(q.dataset.playerIndex);
+                q.style.backgroundImage = playerOriginalBg[logicalIndex] || getDefaultBgForPlayer(logicalIndex);
+            });
             updateDisplay();
+        }
+
+        function getDefaultBgForPlayer(logicalIndex) {
+            const startVarName = `--p${logicalIndex + 1}-color-start`;
+            const endVarName = `--p${logicalIndex + 1}-color-end`;
+            const startVar = rootStyle.getPropertyValue(startVarName);
+            const endVar = rootStyle.getPropertyValue(endVarName);
+            if(startVar && endVar) {
+                return `linear-gradient(135deg, ${startVar.trim()}, ${endVar.trim()})`;
+            }
+            const defaults = [ {s:'#D32F2F',e:'#B71C1C'},{s:'#1976D2',e:'#0D47A1'},{s:'#388E3C',e:'#1B5E20'},{s:'#FFA000',e:'#FF6F00'} ];
+            return defaults[logicalIndex] ? `linear-gradient(135deg, ${defaults[logicalIndex].s}, ${defaults[logicalIndex].e})` : 'none';
         }
 
         function loadSettings() {
             const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                // Load saved time, but if not present or invalid, fallback to default constant
-                initialTimeMinutes = (settings.initialTime && settings.initialTime >=1) ? settings.initialTime : DEFAULT_INITIAL_TIME_MINUTES;
-                initialTimeInput.value = initialTimeMinutes;
+                // Use saved time if valid, otherwise default. Input field reflects this.
+                let loadedTime = (settings.initialTime && settings.initialTime >=1) ? settings.initialTime : DEFAULT_INITIAL_TIME_MINUTES;
+                initialTimeInput.value = loadedTime; 
+                // initialTimeMinutes will be set by applyAndResetGame based on this input value.
                 
                 colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
                 colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
                 colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
-                colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1';
+                colorEndInputs[1].value = settings.p1ColorEnd || '#0D47A1'; // Typo: Should be settings.p2ColorEnd
                 colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
-                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';
+                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
                 colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
-                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';
+                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';  
             } else {
-                // No saved settings, use the default constant for initial time
-                initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES;
-                initialTimeInput.value = initialTimeMinutes; // Also set the input field
-                // Default colors will be applied from HTML input values if nothing saved
+                // No saved settings, input field keeps its HTML default "20"
+                // or is set to DEFAULT_INITIAL_TIME_MINUTES explicitly if needed
+                initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
             }
-            applyAndResetGame(); // This will apply loaded/default settings and reset the game state
+            applyAndResetGame(); 
+        }
+        
+        // Correction for a minor typo I spotted in loadSettings during review:
+        function loadSettingsCorrected() {
+            const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                let loadedTime = (settings.initialTime && parseInt(settings.initialTime) >=1) ? parseInt(settings.initialTime) : DEFAULT_INITIAL_TIME_MINUTES;
+                initialTimeInput.value = loadedTime; 
+                
+                colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
+                colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
+                colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
+                colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1'; // Corrected from p1ColorEnd
+                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
+                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
+                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
+                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';  
+            } else {
+                initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
+            }
+            applyAndResetGame(); 
         }
 
-        settingsToggleButton.addEventListener('click', () => {
-            settingsModal.style.display = 'flex';
-        });
-        closeSettingsButton.addEventListener('click', () => {
-            settingsModal.style.display = 'none';
-        });
-        applySettingsButton.addEventListener('click', () => {
-            applyAndResetGame();
-            settingsModal.style.display = 'none';
-        });
-        window.addEventListener('click', (event) => { 
-            if (event.target == settingsModal) {
-                settingsModal.style.display = 'none';
-            }
-        });
 
-        document.addEventListener('DOMContentLoaded', loadSettings);
+        settingsToggleButton.addEventListener('click', () => { settingsModal.style.display = 'flex'; });
+        closeSettingsButton.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+        applySettingsButton.addEventListener('click', () => { applyAndResetGame(); settingsModal.style.display = 'none'; });
+        window.addEventListener('click', (event) => { if (event.target == settingsModal) settingsModal.style.display = 'none'; });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettingsCorrected(); // Use the corrected version
+        });
     </script>
 </body>
 </html>
