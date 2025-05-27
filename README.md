@@ -56,14 +56,14 @@ This application is built with plain HTML, CSS, and JavaScript. No external fram
 Suggestions and contributions are welcome! Feel free to open an issue or submit a pull request.
 
 Possible areas for future improvement:
-*   Sound notifications for low time or time out.
-*   More advanced settings (e.g., increment per turn).
+*   Sound notifications for low time.
+*   More advanced settings (e.g., increment per turn, add extra time).
 *   Player name customization.
 *   Different visual themes.
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE.txt) (You'll need to add a LICENSE.txt file if you want one, or remove this line).
+This project is open source and available under the [MIT License]
 
 ---
 
