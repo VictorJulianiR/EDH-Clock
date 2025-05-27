@@ -315,7 +315,7 @@
 
     <script>
         const DEFAULT_INITIAL_TIME_MINUTES = 20;
-        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2_VJ_fix1'; 
+        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2_VJ';
         const MAX_PLAYERS = 4;
         const LONG_PRESS_DURATION = 3000; // 3 seconds
 
@@ -330,7 +330,7 @@
         let gameHasStartedOnce = false; 
         
         let longPressTimers = [null, null, null, null];
-        let pressStartTime = [0, 0, 0, 0]; // To track start time of a press for short click detection
+        let longPressActionTakenFlags = [false, false, false, false]; // ADDED: Flag to track if long press action was taken
 
 
         let audioContext;
@@ -480,30 +480,30 @@
 
         function manuallyDisablePlayer(playerIndex) {
             const quadrant = getQuadrantDOM(playerIndex);
-            if (!quadrant || quadrant.classList.contains('timed-out-player')) { 
+            if (!quadrant || quadrant.classList.contains('timed-out-player')) {
                 return;
             }
 
             console.log(`Manually disabling Player ${playerIndex + 1}`);
             quadrant.classList.add('timed-out-player');
-            quadrant.style.backgroundImage = ''; 
-            playBeep(220, 0.15, 'sawtooth', 0.25); 
+            quadrant.style.backgroundImage = '';
+            playBeep(220, 0.15, 'sawtooth', 0.25);
 
-            if (activePlayerIndex === playerIndex) { 
+            if (activePlayerIndex === playerIndex) {
                 stopAllTimers();
                 isPaused = true;
-                activePlayerIndex = -1; 
+                activePlayerIndex = -1;
             }
             updateDisplay();
         }
 
 
         function handleTimeout(playerIndex) {
-            playerTimes[playerIndex] = 0; 
+            playerTimes[playerIndex] = 0;
             const timedOutQuadrant = getQuadrantDOM(playerIndex);
 
             if (timedOutQuadrant && !timedOutQuadrant.classList.contains('timed-out-player')) {
-                 timedOutQuadrant.classList.add('timed-out-player'); 
+                 timedOutQuadrant.classList.add('timed-out-player');
                  timedOutQuadrant.style.backgroundImage = ''; 
                  timedOutQuadrant.classList.add('timeout-flash-animation');
                  setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
@@ -515,7 +515,7 @@
             if (activePlayerIndex === playerIndex) {
                 stopAllTimers();
                 isPaused = true;
-                activePlayerIndex = -1; 
+                activePlayerIndex = -1;
             }
             updateDisplay(); 
         }
@@ -556,56 +556,67 @@
             updateDisplay();
         }
 
-        // TOUCH AND MOUSE HANDLERS FOR LONG PRESS + CLICK
         function handlePressStart(event, playerIndex) {
-            // For touchstart, we call preventDefault to manage click behavior ourselves
-            if (event.type === 'touchstart') {
+            const quadrant = getQuadrantDOM(playerIndex);
+            if (!quadrant || isPlayerEffectivelyOutOfGame(playerIndex)) {
+                return;
+            }
+
+            // Only preventDefault for mousedown to stop text selection.
+            // For touchstart, we DO NOT preventDefault, to allow 'click' to fire for taps.
+            if (event.type === 'mousedown') {
                 event.preventDefault();
             }
 
-            const quadrant = getQuadrantDOM(playerIndex);
-            if (isPlayerEffectivelyOutOfGame(playerIndex)) {
-                return; 
-            }
+            clearTimeout(longPressTimers[playerIndex]);
+            longPressActionTakenFlags[playerIndex] = false; // Reset flag
 
-            pressStartTime[playerIndex] = Date.now(); 
-            clearTimeout(longPressTimers[playerIndex]); 
-            quadrant.classList.add('long-pressing'); 
+            quadrant.classList.add('long-pressing');
 
             longPressTimers[playerIndex] = setTimeout(() => {
-                manuallyDisablePlayer(playerIndex);
-                quadrant.classList.remove('long-pressing'); 
-                longPressTimers[playerIndex] = null; 
-                pressStartTime[playerIndex] = 0; 
+                // Check if still pressing (e.g., mouse hasn't left, touch hasn't cancelled)
+                if (quadrant.classList.contains('long-pressing')) {
+                    manuallyDisablePlayer(playerIndex);
+                    longPressActionTakenFlags[playerIndex] = true;
+                    quadrant.classList.remove('long-pressing'); // Feedback handled
+                }
+                longPressTimers[playerIndex] = null; // Mark timer as processed
             }, LONG_PRESS_DURATION);
         }
 
         function handlePressEnd(event, playerIndex) {
+            // This function is called on mouseup, touchend, mouseleave, touchcancel.
             const quadrant = getQuadrantDOM(playerIndex);
-            const pressDuration = Date.now() - pressStartTime[playerIndex];
+
+            // If the timer is still pending (i.e., longPressTimers[playerIndex] has an ID),
+            // it means the long press duration wasn't reached or was interrupted.
+            if (longPressTimers[playerIndex]) {
+                clearTimeout(longPressTimers[playerIndex]);
+                longPressTimers[playerIndex] = null; // Mark timer as cleared, didn't fire action.
+            }
 
             if (quadrant) {
                 quadrant.classList.remove('long-pressing');
             }
-
-            if (longPressTimers[playerIndex]) { 
-                clearTimeout(longPressTimers[playerIndex]);
-                longPressTimers[playerIndex] = null; 
-
-                if (pressStartTime[playerIndex] !== 0 && pressDuration < LONG_PRESS_DURATION) {
-                    // It was a short press, trigger the normal click logic
-                    // Pass a simplified event object or just the target.
-                    // Since handleQuadrantClick expects event.currentTarget:
-                    performQuadrantAction(playerIndex); // Changed to call a new intermediate function
-                }
-            }
-            pressStartTime[playerIndex] = 0; 
+            // For 'touchend' (and 'mouseup'), if preventDefault was not called on 'touchstart' (or 'mousedown'),
+            // a 'click' event should follow. We let handleQuadrantClick manage the tap action.
+            // The longPressActionTakenFlags[playerIndex] will be checked by handleQuadrantClick.
         }
-        
-        // This function is the core logic previously in handleQuadrantClick
-        function performQuadrantAction(playerIndex) {
-            if (isPlayerEffectivelyOutOfGame(playerIndex)) {
-                alert(`Player ${playerIndex + 1} is out of the game.`);
+
+
+        function handleQuadrantClick(event) {
+            const clickedQuadrant = event.currentTarget;
+            const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
+
+            // If a long press action was just completed for this player,
+            // this click event is subsequent to it. Consume the flag and ignore this click.
+            if (longPressActionTakenFlags[clickedPlayerIndex]) {
+                longPressActionTakenFlags[clickedPlayerIndex] = false; // Reset flag
+                return;
+            }
+
+            if (isPlayerEffectivelyOutOfGame(clickedPlayerIndex)) {
+                alert(`Player ${clickedPlayerIndex + 1} is out of the game.`);
                 return;
             }
             
@@ -613,11 +624,13 @@
             attemptFullscreenOnMobileLandscape();
 
             if (isPaused) { 
-                startTimerForPlayer(playerIndex); 
-                return;
+                startTimerForPlayer(clickedPlayerIndex); 
+                return; // startTimerForPlayer will call updateDisplay
             }
 
-            if (activePlayerIndex === playerIndex) { 
+            // Game is running (not paused)
+            if (activePlayerIndex === clickedPlayerIndex) { 
+                // Player taps their own quadrant to pass turn
                 stopAllTimers(); 
                 let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
                 let attempts = 0;
@@ -630,39 +643,43 @@
                 } else { 
                     isPaused = true; 
                     activePlayerIndex = -1; 
-                    updateDisplay();
                     alert("No other active players remaining.");
+                    updateDisplay(); // Update display as no timer will start
                 }
             } else { 
-                 startTimerForPlayer(playerIndex);
+                 // Player taps another quadrant (not their own active one) to take priority
+                 startTimerForPlayer(clickedPlayerIndex);
             }
+            // updateDisplay(); // Called by startTimerForPlayer or explicitly in the "no other players" branch
         }
-
 
         function togglePause() {
             initAudioContext();
             attemptFullscreenOnMobileLandscape();
 
-            if (isPaused) { 
+            if (isPaused) {
                 let playerToStartCandidate;
+
                 if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
                     playerToStartCandidate = activePlayerIndex;
                 } else {
                     playerToStartCandidate = currentTurnPlayerIndex; 
                     if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
-                         playerToStartCandidate = 0; 
+                         playerToStartCandidate = 0;
                     }
                 }
+
                 let attempts = 0;
                 while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
                     playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
                     attempts++;
                 }
+
                 if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) { 
                     startTimerForPlayer(playerToStartCandidate);
                 } else { 
                     alert("All players are out of the game. Reset or adjust settings.");
-                    isPaused = true; 
+                    isPaused = true;
                     activePlayerIndex = -1;
                     updateDisplay(); 
                 }
@@ -677,63 +694,25 @@
         
         document.querySelectorAll('.quadrant').forEach(quad => {
             const playerIndex = parseInt(quad.dataset.playerIndex);
+            
+            quad.addEventListener('click', handleQuadrantClick); // Main handler for tap actions
 
-            // MOUSE events
-            quad.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { // Left mouse button
-                    handlePressStart(e, playerIndex);
-                }
-            });
-            quad.addEventListener('mouseup', (e) => {
-                if (e.button === 0) {
-                    handlePressEnd(e, playerIndex);
-                }
-            });
-            quad.addEventListener('mouseleave', (e) => { // Cancel long press if mouse leaves
-                 if (e.button === 0 && longPressTimers[playerIndex]) { 
-                    clearTimeout(longPressTimers[playerIndex]);
-                    longPressTimers[playerIndex] = null;
-                    quad.classList.remove('long-pressing');
-                    pressStartTime[playerIndex] = 0;
-                }
-            });
-             // Standard click for desktop (will fire after mouseup if not a long press handled by mouseup)
-             // and accessibility.
-            quad.addEventListener('click', (e) => {
-                // Only process click if it wasn't part of a long press sequence already handled
-                // This can be tricky because mouseup might have already called performQuadrantAction
-                // We can add a small delay flag or simply let it be if performQuadrantAction is idempotent enough.
-                // For simplicity, if pressStartTime is 0, it means it's a genuine click or long press already handled.
-                if (pressStartTime[playerIndex] === 0 && !isPlayerEffectivelyOutOfGame(playerIndex)) {
-                    // If it's a genuine click (not one that followed a short mouse press that already triggered action)
-                    // This condition might need refinement if double actions occur on desktop.
-                    // A more robust way is to ensure performQuadrantAction is only called once per interaction.
-                    // The current handlePressEnd for MOUSE will call performQuadrantAction.
-                    // So, this 'click' listener is mainly a fallback or for non-mouse clicks.
-                    // Let's ensure it doesn't conflict with mouseup's action.
-                    // A simple check: if the long press timer was never set or already cleared by long press firing.
-                    if(!longPressTimers[playerIndex] && !quad.classList.contains('long-pressing')) {
-                         performQuadrantAction(playerIndex);
-                    }
-                }
-            });
+            // Long press listeners
+            quad.addEventListener('mousedown', (e) => handlePressStart(e, playerIndex));
+            // For touchstart, passive: false is needed if handlePressStart *might* call preventDefault.
+            // Since our handlePressStart only calls it for 'mousedown', for 'touchstart' it doesn't.
+            // However, to be safe with a shared handler or future changes, passive: false is safer.
+            // If handlePressStart *never* calls preventDefault for touch, passive: true is better.
+            // Given the current logic (no preventDefault for touchstart in handlePressStart), passive: true would be fine.
+            // But the original code used passive: false, so let's stick to that to ensure no unexpected regressions if
+            // preventDefault were added back for touchstart for other reasons (e.g. scroll prevention on drag).
+            quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false });
 
-
-            // TOUCH events
-            quad.addEventListener('touchstart', (e) => {
-                handlePressStart(e, playerIndex);
-            }, { passive: false }); // passive: false to allow preventDefault in handlePressStart
-
-            quad.addEventListener('touchend', (e) => {
-                handlePressEnd(e, playerIndex);
-            });
-            quad.addEventListener('touchcancel', (e) => { 
-                clearTimeout(longPressTimers[playerIndex]);
-                longPressTimers[playerIndex] = null;
-                quad.classList.remove('long-pressing');
-                pressStartTime[playerIndex] = 0;
-            });
-
+            quad.addEventListener('mouseup', (e) => handlePressEnd(e, playerIndex));
+            quad.addEventListener('mouseleave', (e) => handlePressEnd(e, playerIndex)); 
+            quad.addEventListener('touchend', (e) => handlePressEnd(e, playerIndex));
+            quad.addEventListener('touchcancel', (e) => handlePressEnd(e, playerIndex));
+            
             quad.addEventListener('contextmenu', (e) => e.preventDefault());
         });
 
@@ -774,9 +753,8 @@
             isPaused = true;
             fullscreenAttemptedInLandscape = false;
             gameHasStartedOnce = false; 
-            longPressTimers.forEach((_, i) => {clearTimeout(longPressTimers[i]); longPressTimers[i] = null;});
-            pressStartTime.fill(0);
-
+            longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i]));
+            longPressActionTakenFlags = [false, false, false, false]; // Reset flags
 
             document.querySelectorAll('.quadrant').forEach(q => {
                 q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing');
@@ -787,16 +765,28 @@
         }
 
         function getDefaultBgForPlayer(logicalIndex) {
-            const startVarName = `--p${logicalIndex + 1}-color-start`;
-            const endVarName = `--p${logicalIndex + 1}-color-end`;
-            const startVar = rootStyle.getPropertyValue(startVarName);
-            const endVar = rootStyle.getPropertyValue(endVarName);
-            if(startVar && endVar) {
-                return `linear-gradient(135deg, ${startVar.trim()}, ${endVar.trim()})`;
-            }
-            const defaults = [ {s:'#D32F2F',e:'#B71C1C'},{s:'#1976D2',e:'#0D47A1'},{s:'#388E3C',e:'#1B5E20'},{s:'#FFA000',e:'#FF6F00'} ];
-            return defaults[logicalIndex] ? `linear-gradient(135deg, ${defaults[logicalIndex].s}, ${defaults[logicalIndex].e})` : 'none';
+            // Corrected player indexing for CSS variables (1-based) vs logicalIndex (0-based)
+            const playerNum = logicalIndex + 1;
+            const startVarName = `--p${playerNum}-color-start`;
+            const endVarName = `--p${playerNum}-color-end`;
+            
+            // Get computed style if available, otherwise fallback to default palette from :root
+            let startVar = rootStyle.getPropertyValue(startVarName).trim();
+            let endVar = rootStyle.getPropertyValue(endVarName).trim();
+
+            const defaults = [ 
+                {s:'#D32F2F',e:'#B71C1C'}, // P1
+                {s:'#1976D2',e:'#0D47A1'}, // P2
+                {s:'#388E3C',e:'#1B5E20'}, // P3
+                {s:'#FFA000',e:'#FF6F00'}  // P4
+            ];
+            
+            if (!startVar) startVar = defaults[logicalIndex].s;
+            if (!endVar) endVar = defaults[logicalIndex].e;
+
+            return `linear-gradient(135deg, ${startVar}, ${endVar})`;
         }
+
 
         function loadSettings() {
             const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
@@ -809,12 +799,21 @@
                 colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
                 colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
                 colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1'; 
-                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
-                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
-                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
-                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';  
+                // Corrected mapping for P3 and P4 colors to their respective input fields
+                // Quadrant visual layout is P1, P2, P4, P3 (bottom-left is P4, bottom-right is P3)
+                // Data player index mapping: P1=0, P2=1, P3=2, P4=3
+                // Input fields are for P1, P2, P3, P4.
+                // CSS variables are --p1, --p2, --p3, --p4.
+                // colorStartInputs[2] is for Player 3 (index 2)
+                // colorStartInputs[3] is for Player 4 (index 3)
+                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C'; // Player 3 data-player-index="2"
+                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';   // Player 3
+                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';// Player 4 data-player-index="3"
+                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';   // Player 4
             } else {
                 initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
+                 // Default colors are set in the input fields' HTML `value` attributes
+                 // and will be picked up by applyAndResetGame if nothing is in localStorage.
             }
             applyAndResetGame(); 
         }
