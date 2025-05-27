@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>cEDH Clock Fullscreen Pro</title>
+    <style>
+        :root {
+            --p1-color-start: #D32F2F;
+            --p1-color-end: #B71C1C;
+            --p2-color-start: #1976D2;
+            --p2-color-end: #0D47A1;
+            --p3-color-start: #388E3C;
+            --p3-color-end: #1B5E20;
+            --p4-color-start: #FFA000;
+            --p4-color-end: #FF6F00;
+
+            --text-color: #FFFFFF;
+            --inactive-overlay: rgba(0, 0, 0, 0.5);
+            --active-glow-color: rgba(255, 255, 0, 0.8);
+            
+            --pause-icon-color: #FFFFFF;
+            --pause-icon-stroke-color: rgba(0, 0, 0, 0.65); /* Stroke for the pause icon */
+            --pause-icon-shadow-color: rgba(0,0,0,0.5);
+
+            --settings-bg: #424242; /* Renamed from --pause-bg for clarity */
+            --settings-hover-bg: #616161;
+            --settings-icon-color: #E0E0E0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh; /* Or 100svh for dynamic viewport height */
+            width: 100vw;
+            margin: 0;
+            background-color: #212121;
+            color: var(--text-color);
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+
+        #clock-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .quadrant {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.4s ease, box-shadow 0.3s ease;
+            position: relative;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0,0,0,0.6), 0 0 10px rgba(0,0,0,0.4);
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .quadrant::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--inactive-overlay);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+        
+        .quadrant > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        .quadrant.active::before {
+            opacity: 0;
+        }
+
+        .quadrant.active {
+            box-shadow: inset 0 0 20px 5px var(--active-glow-color), 0 0 15px var(--active-glow-color);
+        }
+
+        #player1 { background-image: linear-gradient(135deg, var(--p1-color-start), var(--p1-color-end)); }
+        #player2 { background-image: linear-gradient(135deg, var(--p2-color-start), var(--p2-color-end)); }
+        #player3 { background-image: linear-gradient(135deg, var(--p4-color-start), var(--p4-color-end)); }
+        #player4 { background-image: linear-gradient(135deg, var(--p3-color-start), var(--p3-color-end)); }
+
+
+        .player-name {
+            font-size: clamp(16px, 4vmin, 30px);
+            margin-bottom: 1vh;
+            opacity: 0.9;
+        }
+
+        .time-display {
+            font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+            font-size: clamp(38px, 14vmin, 120px);
+            letter-spacing: -0.02em;
+        }
+
+        #pause-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20vmin; /* Hit area width */
+            height: 20vmin; /* Hit area height */
+            max-width: 100px;
+            max-height: 100px;
+            background-color: transparent; /* Visual background removed */
+            color: var(--pause-icon-color); /* Icon color */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(40px, 12vmin, 70px); /* Icon size */
+            cursor: pointer;
+            user-select: none;
+            border-radius: 50%; /* Maintains circular hit area if needed, less relevant if bg transparent */
+            z-index: 10;
+            transition: transform 0.1s ease; /* Only transform for active state */
+            
+            /* Stroke and Shadow for the icon (text) */
+            -webkit-text-stroke: 1.5px var(--pause-icon-stroke-color);
+            text-stroke: 1.5px var(--pause-icon-stroke-color); /* Standard, but -webkit- is key */
+            paint-order: stroke fill; /* Draw stroke behind the fill of the text */
+            text-shadow: 2px 2px 5px var(--pause-icon-shadow-color);
+        }
+        #pause-button:active {
+            transform: translate(-50%, -50%) scale(0.92); /* Feedback for press */
+        }
+
+        #settings-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--settings-bg);
+            color: var(--settings-icon-color);
+            border: none;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        #settings-toggle:hover {
+            background-color: var(--settings-hover-bg);
+        }
+        #settings-toggle:active {
+            transform: scale(0.95);
+        }
+
+
+        #settings-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-content {
+            background-color: rgba(50, 50, 50, 0.9);
+            margin: auto;
+            padding: 25px 30px;
+            border: 1px solid #555;
+            width: 85%;
+            max-width: 450px;
+            border-radius: 12px;
+            color: var(--text-color);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+        }
+
+        .settings-content h2 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.8em;
+            color: #fafafa;
+        }
+
+        .settings-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.95em;
+            color: #ddd;
+        }
+        .settings-content .color-setting-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .settings-content .color-setting-group label {
+            flex-basis: 120px;
+            margin-bottom: 0;
+        }
+        .settings-content input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            border: 1px solid #666;
+            background-color: #333;
+            color: var(--text-color);
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .settings-content input[type="color"] {
+            padding: 0;
+            border: 1px solid #666;
+            border-radius: 6px;
+            cursor: pointer;
+            height: 40px;
+            width: 60px;
+            margin-left: 10px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background: none;
+        }
+        .settings-content input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 5px;
+        }
+        .settings-content input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+        .settings-content input[type="color"]::-moz-color-swatch {
+             border: none;
+             border-radius: 5px;
+        }
+
+
+        .settings-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+
+        .settings-buttons button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .settings-buttons button:active {
+            transform: scale(0.97);
+        }
+        #apply-settings {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #apply-settings:hover {
+            background-color: #45a049;
+        }
+        #close-settings {
+            background-color: #f44336;
+            color: white;
+        }
+        #close-settings:hover {
+            background-color: #e53935;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="clock-container">
+        <div class="quadrant" id="player1" data-player-index="0">
+            <span class="player-name">Player 1</span>
+            <span class="time-display" id="time1">00:00</span>
+        </div>
+        <div class="quadrant" id="player2" data-player-index="1">
+            <span class="player-name">Player 2</span>
+            <span class="time-display" id="time2">00:00</span>
+        </div>
+        <div class="quadrant" id="player3" data-player-index="3">
+            <span class="player-name">Player 4</span>
+            <span class="time-display" id="time4">00:00</span>
+        </div>
+        <div class="quadrant" id="player4" data-player-index="2">
+            <span class="player-name">Player 3</span>
+            <span class="time-display" id="time3">00:00</span>
+        </div>
+        <div id="pause-button">▶️</div>
+    </div>
+
+    <button id="settings-toggle">⚙️</button>
+
+    <div id="settings-modal">
+        <div class="settings-content">
+            <h2>Settings</h2>
+            <label for="initial-time">Initial Time (minutes):</label>
+            <input type="number" id="initial-time" value="40" min="1">
+
+            <div class="color-setting-group">
+                <label for="p1-color-start">Player 1 Start:</label>
+                <input type="color" id="p1-color-start-input" value="#D32F2F">
+                <label for="p1-color-end" style="margin-left:10px;">End:</label>
+                <input type="color" id="p1-color-end-input" value="#B71C1C">
+            </div>
+            <div class="color-setting-group">
+                <label for="p2-color-start">Player 2 Start:</label>
+                <input type="color" id="p2-color-start-input" value="#1976D2">
+                <label for="p2-color-end" style="margin-left:10px;">End:</label>
+                <input type="color" id="p2-color-end-input" value="#0D47A1">
+            </div>
+            <div class="color-setting-group">
+                <label for="p3-color-start">Player 3 Start:</label>
+                <input type="color" id="p3-color-start-input" value="#388E3C">
+                <label for="p3-color-end" style="margin-left:10px;">End:</label>
+                <input type="color" id="p3-color-end-input" value="#1B5E20">
+            </div>
+            <div class="color-setting-group">
+                <label for="p4-color-start">Player 4 Start:</label>
+                <input type="color" id="p4-color-start-input" value="#FFA000">
+                <label for="p4-color-end" style="margin-left:10px;">End:</label>
+                <input type="color" id="p4-color-end-input" value="#FF6F00">
+            </div>
+            
+            <div class="settings-buttons">
+                <button id="apply-settings">Apply & Reset</button>
+                <button id="close-settings">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MAX_PLAYERS = 4;
+        let playerTimes = [];
+        let activePlayerIndex = -1;
+        let currentTurnPlayerIndex = 0;
+        let timerInterval = null;
+        let isPaused = true;
+        let initialTimeMinutes = 20;
+        let fullscreenAttemptedInLandscape = false; // Flag for fullscreen attempt
+
+        const quadrantDOMs = {
+            p0: document.getElementById('player1'),
+            p1: document.getElementById('player2'),
+            p2: document.getElementById('player4'),
+            p3: document.getElementById('player3')
+        };
+        
+        const timeDisplayElements = [
+            document.getElementById('time1'),
+            document.getElementById('time2'),
+            document.getElementById('time3'),
+            document.getElementById('time4')
+        ];
+        
+        const pauseButton = document.getElementById('pause-button');
+        const settingsToggleButton = document.getElementById('settings-toggle');
+        const settingsModal = document.getElementById('settings-modal');
+        const applySettingsButton = document.getElementById('apply-settings');
+        const closeSettingsButton = document.getElementById('close-settings');
+        const initialTimeInput = document.getElementById('initial-time');
+        
+        const colorStartInputs = [
+            document.getElementById('p1-color-start-input'),
+            document.getElementById('p2-color-start-input'),
+            document.getElementById('p3-color-start-input'),
+            document.getElementById('p4-color-start-input')
+        ];
+        const colorEndInputs = [
+            document.getElementById('p1-color-end-input'),
+            document.getElementById('p2-color-end-input'),
+            document.getElementById('p3-color-end-input'),
+            document.getElementById('p4-color-end-input')
+        ];
+        const rootStyle = document.documentElement.style;
+
+        // --- Fullscreen API Helper ---
+        function goFullScreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode (webkit): ${err.message} (${err.name})`));
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen(); // IE doesn't return a promise
+            }
+        }
+
+        function attemptFullscreenOnMobileLandscape() {
+            if (fullscreenAttemptedInLandscape) return;
+
+            const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+            if (!isMobileDevice) return;
+
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            const isCurrentlyFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+
+            if (isLandscape && !isCurrentlyFullscreen) {
+                console.log("Attempting fullscreen for mobile landscape.");
+                goFullScreen();
+                fullscreenAttemptedInLandscape = true; 
+            }
+        }
+        
+        function handleOrientationChangeForFlagReset() {
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            if (!isLandscape) {
+                fullscreenAttemptedInLandscape = false;
+            }
+        }
+
+        if (screen.orientation && typeof screen.orientation.addEventListener === 'function') {
+            screen.orientation.addEventListener('change', handleOrientationChangeForFlagReset);
+        } else {
+            window.addEventListener('orientationchange', handleOrientationChangeForFlagReset);
+        }
+        // --- End Fullscreen API ---
+
+
+        function formatTime(totalSeconds) {
+            if (totalSeconds < 0) totalSeconds = 0;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            for (let i = 0; i < MAX_PLAYERS; i++) {
+                timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
+                
+                let qElement;
+                if (i === 0) qElement = quadrantDOMs.p0;
+                else if (i === 1) qElement = quadrantDOMs.p1;
+                else if (i === 2) qElement = quadrantDOMs.p2;
+                else if (i === 3) qElement = quadrantDOMs.p3;
+
+                if (qElement) {
+                    if (i === activePlayerIndex && !isPaused) {
+                        qElement.classList.add('active');
+                    } else {
+                        qElement.classList.remove('active');
+                    }
+                }
+            }
+            pauseButton.textContent = isPaused ? '▶️' : '⏸️';
+        }
+        
+        function stopAllTimers() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            Object.values(quadrantDOMs).forEach(q => q.classList.remove('active'));
+        }
+
+        function startTimerForPlayer(playerIndex) {
+            // Try fullscreen if it's a "start game" action
+            if ((activePlayerIndex === -1 && isPaused) || // Game not started, and is paused
+                (isPaused && activePlayerIndex === playerIndex && !timerInterval) ) { // Resuming this player who was paused
+                attemptFullscreenOnMobileLandscape();
+            }
+
+            stopAllTimers(); 
+            activePlayerIndex = playerIndex;
+            currentTurnPlayerIndex = playerIndex; 
+            isPaused = false;
+
+            if (playerTimes[activePlayerIndex] <= 0) {
+                updateDisplay();
+                return;
+            }
+            
+            timerInterval = setInterval(() => {
+                if (!isPaused && playerTimes[activePlayerIndex] > 0) {
+                    playerTimes[activePlayerIndex]--;
+                    if (playerTimes[activePlayerIndex] <= 0) {
+                        playerTimes[activePlayerIndex] = 0;
+                        stopAllTimers();
+                        isPaused = true; 
+                        alert(`Player ${activePlayerIndex + 1} is out of time!`);
+                    }
+                    updateDisplay();
+                } else if (playerTimes[activePlayerIndex] <= 0) {
+                    stopAllTimers();
+                    isPaused = true;
+                    updateDisplay();
+                }
+            }, 1000);
+            updateDisplay();
+        }
+
+        function handleQuadrantClick(event) {
+            const clickedQuadrant = event.currentTarget;
+            const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
+
+            if (isPaused && activePlayerIndex !== clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
+                // Attempt fullscreen when starting by clicking a quadrant from paused state
+                attemptFullscreenOnMobileLandscape();
+                startTimerForPlayer(clickedPlayerIndex);
+                return;
+            }
+            if (isPaused && activePlayerIndex === clickedPlayerIndex && playerTimes[clickedPlayerIndex] > 0) {
+                 // Attempt fullscreen when resuming own quadrant from paused state
+                attemptFullscreenOnMobileLandscape();
+                isPaused = false;
+                startTimerForPlayer(clickedPlayerIndex); 
+                return;
+            }
+            if (isPaused) return;
+
+
+            if (activePlayerIndex === clickedPlayerIndex) {
+                stopAllTimers();
+                currentTurnPlayerIndex = (activePlayerIndex + 1) % MAX_PLAYERS;
+                let attempts = 0;
+                while(playerTimes[currentTurnPlayerIndex] <= 0 && attempts < MAX_PLAYERS) {
+                    currentTurnPlayerIndex = (currentTurnPlayerIndex + 1) % MAX_PLAYERS;
+                    attempts++;
+                }
+                if (playerTimes[currentTurnPlayerIndex] > 0) {
+                     startTimerForPlayer(currentTurnPlayerIndex);
+                } else {
+                    isPaused = true; 
+                    activePlayerIndex = -1; 
+                    updateDisplay();
+                    alert("No other players with time remaining to pass to.");
+                }
+            } else {
+                if (playerTimes[clickedPlayerIndex] > 0) {
+                    startTimerForPlayer(clickedPlayerIndex);
+                } else {
+                    alert(`Player ${clickedPlayerIndex + 1} is out of time and cannot take priority.`);
+                }
+            }
+        }
+
+        function togglePause() {
+            if (activePlayerIndex === -1 && isPaused) { 
+                if (playerTimes[0] > 0) {
+                    attemptFullscreenOnMobileLandscape(); // Attempt fullscreen when starting with pause button
+                    startTimerForPlayer(0);
+                } else {
+                    alert("Cannot start, Player 1 has no time. Reset or adjust settings.");
+                }
+                return;
+            }
+
+            isPaused = !isPaused;
+            if (!isPaused && activePlayerIndex !== -1) {
+                 // Attempt fullscreen when unpausing with pause button
+                attemptFullscreenOnMobileLandscape();
+                startTimerForPlayer(activePlayerIndex); 
+            }
+            updateDisplay();
+        }
+        
+        pauseButton.addEventListener('click', togglePause);
+
+        Object.values(quadrantDOMs).forEach(quad => {
+            quad.addEventListener('click', handleQuadrantClick);
+        });
+
+        function applyAndResetGame() {
+            initialTimeMinutes = parseInt(initialTimeInput.value) || 20;
+            if (initialTimeMinutes < 1) initialTimeMinutes = 1;
+            
+            rootStyle.setProperty('--p1-color-start', colorStartInputs[0].value);
+            rootStyle.setProperty('--p1-color-end', colorEndInputs[0].value);
+            rootStyle.setProperty('--p2-color-start', colorStartInputs[1].value);
+            rootStyle.setProperty('--p2-color-end', colorEndInputs[1].value);
+            rootStyle.setProperty('--p3-color-start', colorStartInputs[2].value);
+            rootStyle.setProperty('--p3-color-end', colorEndInputs[2].value);
+            rootStyle.setProperty('--p4-color-start', colorStartInputs[3].value);
+            rootStyle.setProperty('--p4-color-end', colorEndInputs[3].value);
+            
+            quadrantDOMs.p0.style.backgroundImage = `linear-gradient(135deg, var(--p1-color-start), var(--p1-color-end))`;
+            quadrantDOMs.p1.style.backgroundImage = `linear-gradient(135deg, var(--p2-color-start), var(--p2-color-end))`;
+            quadrantDOMs.p2.style.backgroundImage = `linear-gradient(135deg, var(--p3-color-start), var(--p3-color-end))`;
+            quadrantDOMs.p3.style.backgroundImage = `linear-gradient(135deg, var(--p4-color-start), var(--p4-color-end))`;
+
+            localStorage.setItem('cEDHClockSettingsFullscreenPro', JSON.stringify({ // New key for new settings format
+                initialTime: initialTimeMinutes,
+                p1ColorStart: colorStartInputs[0].value, p1ColorEnd: colorEndInputs[0].value,
+                p2ColorStart: colorStartInputs[1].value, p2ColorEnd: colorEndInputs[1].value,
+                p3ColorStart: colorStartInputs[2].value, p3ColorEnd: colorEndInputs[2].value,
+                p4ColorStart: colorStartInputs[3].value, p4ColorEnd: colorEndInputs[3].value,
+            }));
+
+            resetGame();
+        }
+
+        function resetGame() {
+            stopAllTimers();
+            playerTimes = Array(MAX_PLAYERS).fill(initialTimeMinutes * 60);
+            activePlayerIndex = -1; 
+            currentTurnPlayerIndex = 0; 
+            isPaused = true;
+            fullscreenAttemptedInLandscape = false; // Reset flag on game reset
+            updateDisplay();
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('cEDHClockSettingsFullscreenPro');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                initialTimeInput.value = settings.initialTime || 20;
+                colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
+                colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
+                colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
+                colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1';
+                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
+                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';
+                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
+                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';
+            }
+            applyAndResetGame();
+        }
+
+        settingsToggleButton.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+        closeSettingsButton.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+        applySettingsButton.addEventListener('click', () => {
+            applyAndResetGame();
+            settingsModal.style.display = 'none';
+        });
+        window.addEventListener('click', (event) => { 
+            if (event.target == settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+</body>
+</html>
