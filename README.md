@@ -36,6 +36,7 @@ A simple, mobile-first web application designed as a chess clock for Commander (
 4.  **Gameplay:**
     *   **Passing Priority:** If your timer is ticking, click your quadrant again. Your timer stops, and the next player's timer (clockwise) starts.
     *   **Holding/Taking Priority:** If another player's timer is ticking (or no timer is ticking but the game isn't paused), click your quadrant. The current active timer stops, and your timer starts.
+    *   **Long press:** Long press to eliminate a player. Can't be undone.
     *   **Pausing:** Click the central ⏸️ button to pause the active timer. Click ▶️ to resume.
 5.  **Time Out:** If a player's time reaches 00:00, an alert will notify players. That player can no longer take priority.
 
