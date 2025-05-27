@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>cEDH Clock Enhanced v2</title>
+    <title>cEDH Clock Enhanced v2 - VictorJuliani</title>
     <style>
         :root {
             --p1-color-start: #D32F2F;
@@ -64,13 +64,17 @@
             justify-content: center;
             cursor: pointer;
             user-select: none;
-            transition: background 0.4s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+            transition: background 0.4s ease, box-shadow 0.3s ease, opacity 0.3s ease, filter 0.2s ease; /* Added filter transition */
             position: relative;
             font-weight: bold;
             text-shadow: 0 0 5px rgba(0,0,0,0.6), 0 0 10px rgba(0,0,0,0.4);
             padding: 10px;
             box-sizing: border-box;
         }
+        .quadrant.long-pressing { /* Visual feedback for long press */
+            filter: brightness(0.7) contrast(1.1);
+        }
+
 
         .quadrant::before { /* Inactive overlay */
             content: '';
@@ -137,7 +141,7 @@
 
         .time-display {
             font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
-            font-size: clamp(38px, 14vmin, 120px);
+            font-size: clamp(32px, 12vmin, 100px);
             letter-spacing: -0.02em;
         }
 
@@ -172,7 +176,8 @@
         }
         .settings-content {
             background-color: rgba(50, 50, 50, 0.9); margin: auto; padding: 25px 30px;
-            border: 1px solid #555; width: 85%; max-width: 450px; border-radius: 12px;
+            border: 1px solid #555; width: 85%; max-width: 500px; /* Increased max-width for new content */
+            border-radius: 12px;
             color: var(--text-color); box-shadow: 0 5px 25px rgba(0,0,0,0.3);
         }
         .settings-content h2 { margin-top: 0; margin-bottom: 25px; text-align: center; font-size: 1.8em; color: #fafafa; }
@@ -190,6 +195,31 @@
         .settings-content input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 5px; }
         .settings-content input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
         .settings-content input[type="color"]::-moz-color-swatch { border: none; border-radius: 5px; }
+        
+        /* Settings HowTo & Credits Styling */
+        .settings-divider {
+            height: 1px; background-color: #5f5f5f; margin: 25px 0;
+        }
+        .settings-howto-section h3 {
+            font-size: 1.2em; color: #f0f0f0; margin-bottom: 12px; text-align: left;
+        }
+        .settings-howto-section ul {
+            list-style-type: disc; padding-left: 25px; margin-top: 0; margin-bottom: 15px;
+            font-size: 0.9em; line-height: 1.6; color: #ccc;
+        }
+        .settings-howto-section li::marker { color: #aaa; }
+        .settings-credits {
+            text-align: center; font-size: 0.85em; color: #b0b0b0; margin-top: 20px;
+            font-style: italic;
+        }
+        .settings-credits a {
+            color: #c0c0c0; text-decoration: none;
+        }
+        .settings-credits a:hover {
+            color: #ffffff; text-decoration: underline;
+        }
+
+
         .settings-buttons { display: flex; justify-content: space-around; margin-top: 30px; }
         .settings-buttons button {
             padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer;
@@ -256,6 +286,26 @@
                 <input type="color" id="p4-color-end-input" value="#FF6F00">
             </div>
             
+            <div class="settings-divider"></div>
+
+            <div class="settings-howto-section">
+                <h3>How to Play:</h3>
+                <ul>
+                    <li>Tapping a player's quadrant will start their timer or pass the turn.</li>
+                    <li>Tap your player quadrant to pass priority.</li>
+                    <li>Tap your player quadrant when it's not your turn to get priority and bypass turn order.</li>
+                    <li>The central button pauses or resumes the current player's timer.</li>
+                    <li>If a player's time reaches 00:00, they are automatically eliminated.</li>
+                    <li>Press and hold a player's quadrant for 3 seconds to manually eliminate them. Their time will be kept, but they are out of play.</li>
+                    <li>Use the ⚙️ icon to access settings and reset the game.</li>
+                </ul>
+            </div>
+
+            <div class="settings-credits">
+                Created by <a href="https://github.com/VictorJuliani" target="_blank" rel="noopener noreferrer">Victor Juliani</a>
+            </div>
+
+
             <div class="settings-buttons">
                 <button id="apply-settings">Apply & Reset</button>
                 <button id="close-settings">Close</button>
@@ -265,17 +315,21 @@
 
     <script>
         const DEFAULT_INITIAL_TIME_MINUTES = 20;
-        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2'; 
+        const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2_VJ'; // Added suffix for uniqueness
         const MAX_PLAYERS = 4;
+        const LONG_PRESS_DURATION = 3000; // 3 seconds
+
         let playerTimes = [];
         let playerOriginalBg = Array(MAX_PLAYERS).fill('');
-        let activePlayerIndex = -1; // Index of the currently active player, or last active if paused/timed out. -1 if game not started.
-        let currentTurnPlayerIndex = 0; // Index of player whose turn it is or would be next if starting from scratch.
+        let activePlayerIndex = -1; 
+        let currentTurnPlayerIndex = 0; 
         let timerInterval = null;
         let isPaused = true;
         let initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES;
         let fullscreenAttemptedInLandscape = false;
         let gameHasStartedOnce = false; 
+        let longPressTimers = [null, null, null, null];
+
 
         let audioContext;
         function initAudioContext() {
@@ -356,6 +410,13 @@
         function getQuadrantDOM(playerIndex) {
             return document.querySelector(`.quadrant[data-player-index="${playerIndex}"]`);
         }
+        
+        function isPlayerEffectivelyOutOfGame(playerIndex) {
+            const q = getQuadrantDOM(playerIndex);
+            // A player is out if their time is <= 0 OR they have the 'timed-out-player' class (manually disabled)
+            return playerTimes[playerIndex] <= 0 || (q && q.classList.contains('timed-out-player'));
+        }
+
 
         function goFullScreen() {
             const elem = document.documentElement;
@@ -400,7 +461,7 @@
                 timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
                 const qElement = getQuadrantDOM(i);
                 if (qElement) {
-                    if (i === activePlayerIndex && !isPaused && playerTimes[i] > 0) {
+                    if (i === activePlayerIndex && !isPaused && !isPlayerEffectivelyOutOfGame(i)) {
                         qElement.classList.add('active');
                     } else {
                         qElement.classList.remove('active');
@@ -416,38 +477,58 @@
             document.querySelectorAll('.quadrant.active').forEach(q => q.classList.remove('active'));
         }
 
-        function handleTimeout(playerIndex) {
-            playerTimes[playerIndex] = 0;
-            stopAllTimers();
-            isPaused = true; 
-            // activePlayerIndex remains the index of the timed-out player, important for togglePause logic
-
-            const timedOutQuadrant = getQuadrantDOM(playerIndex);
-            if (timedOutQuadrant) {
-                timedOutQuadrant.classList.remove('active');
-                timedOutQuadrant.classList.add('timed-out-player');
-                timedOutQuadrant.style.backgroundImage = ''; 
-                
-                timedOutQuadrant.classList.add('timeout-flash-animation');
-                setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
+        function manuallyDisablePlayer(playerIndex) {
+            const quadrant = getQuadrantDOM(playerIndex);
+            if (!quadrant || quadrant.classList.contains('timed-out-player')) { // Already disabled or timed out
+                return;
             }
 
-            playBeep(880, 0.2, 'square', 0.4); 
-            playBeep(880, 0.2, 'square', 0.4); 
+            console.log(`Manually disabling Player ${playerIndex + 1}`);
+            quadrant.classList.add('timed-out-player');
+            quadrant.style.backgroundImage = ''; // Let CSS handle the gray background
+            playBeep(220, 0.15, 'sawtooth', 0.25); // Distinct "off" sound
+
+            if (activePlayerIndex === playerIndex) { // If the currently active player is disabled
+                stopAllTimers();
+                isPaused = true;
+                activePlayerIndex = -1; // Mark no player as active for pause logic
+            }
+            updateDisplay();
+        }
+
+
+        function handleTimeout(playerIndex) {
+            playerTimes[playerIndex] = 0; // Mark time as 0 for actual timeout
+            const timedOutQuadrant = getQuadrantDOM(playerIndex);
+
+            if (timedOutQuadrant && !timedOutQuadrant.classList.contains('timed-out-player')) {
+                 timedOutQuadrant.classList.add('timed-out-player'); // Ensure class is added
+                 timedOutQuadrant.style.backgroundImage = ''; 
+                 timedOutQuadrant.classList.add('timeout-flash-animation');
+                 setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
+                 playBeep(880, 0.2, 'square', 0.4); 
+                 playBeep(880, 0.2, 'square', 0.4); 
+                 alert(`Player ${playerIndex + 1} is out of time!`);
+            }
             
-            alert(`Player ${playerIndex + 1} is out of time!`);
+            // Common logic for both timeout and manual disable if active
+            if (activePlayerIndex === playerIndex) {
+                stopAllTimers();
+                isPaused = true;
+                activePlayerIndex = -1; // No player is active now
+            }
             updateDisplay(); 
         }
 
         function startTimerForPlayer(playerIndex) {
-            if (playerTimes[playerIndex] <= 0) { 
-                updateDisplay(); // Should not happen if called correctly, but good guard
+            if (isPlayerEffectivelyOutOfGame(playerIndex)) { 
+                updateDisplay();
                 return;
             }
             
             stopAllTimers(); 
             activePlayerIndex = playerIndex;
-            currentTurnPlayerIndex = playerIndex; // The player whose turn it now is
+            currentTurnPlayerIndex = playerIndex; 
             isPaused = false; 
             
             if (!gameHasStartedOnce) {
@@ -457,7 +538,7 @@
             }
 
             timerInterval = setInterval(() => {
-                if (!isPaused && playerTimes[activePlayerIndex] > 0) {
+                if (!isPaused && playerTimes[activePlayerIndex] > 0 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
                     playerTimes[activePlayerIndex]--;
                     if (playerTimes[activePlayerIndex] <= 0) {
                         handleTimeout(activePlayerIndex);
@@ -465,17 +546,60 @@
                     updateDisplay();
                 } else if (playerTimes[activePlayerIndex] <= 0 && !isPaused) { 
                     handleTimeout(activePlayerIndex);
+                } else if (isPlayerEffectivelyOutOfGame(activePlayerIndex) && !isPaused) {
+                    // This case handles if a player becomes "effectively out" (e.g. manually disabled) while their timer is running
+                    stopAllTimers();
+                    isPaused = true;
+                    activePlayerIndex = -1;
+                    updateDisplay();
                 }
             }, 1000);
             updateDisplay();
         }
 
+        function handlePressStart(event, playerIndex) {
+            event.preventDefault(); // Prevent context menu on long touch, and other default actions
+            const quadrant = getQuadrantDOM(playerIndex);
+            if (isPlayerEffectivelyOutOfGame(playerIndex)) {
+                return; // No long press on already out players
+            }
+
+            clearTimeout(longPressTimers[playerIndex]); // Clear any existing timer
+            quadrant.classList.add('long-pressing'); // Visual feedback
+
+            longPressTimers[playerIndex] = setTimeout(() => {
+                manuallyDisablePlayer(playerIndex);
+                quadrant.classList.remove('long-pressing'); // Remove feedback after action
+            }, LONG_PRESS_DURATION);
+        }
+
+        function handlePressEnd(event, playerIndex) {
+            clearTimeout(longPressTimers[playerIndex]);
+            const quadrant = getQuadrantDOM(playerIndex);
+            if (quadrant) {
+                quadrant.classList.remove('long-pressing'); // Remove visual feedback
+            }
+             // The click event will still fire after this on desktop for mousedown->mouseup
+             // On touch, touchend doesn't inherently trigger a click if preventDefault was called on touchstart.
+             // We need to decide if a short press still triggers the normal quadrant click.
+             // For now, the standard click handler will take over if it's not a long press.
+        }
+
+
         function handleQuadrantClick(event) {
             const clickedQuadrant = event.currentTarget;
             const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
 
-            if (playerTimes[clickedPlayerIndex] <= 0) {
-                alert(`Player ${clickedPlayerIndex + 1} is out of time.`);
+            // If a long press timer is active for this quadrant, it means this "click"
+            // is likely the end of an uncompleted long press. We clear it and do nothing else.
+            if (longPressTimers[clickedPlayerIndex] !== null) {
+                handlePressEnd(event, clickedPlayerIndex); // Clear timer and visual feedback
+                // return; // Optionally prevent normal click if long press was initiated then aborted short
+            }
+
+
+            if (isPlayerEffectivelyOutOfGame(clickedPlayerIndex)) {
+                alert(`Player ${clickedPlayerIndex + 1} is out of the game.`);
                 return;
             }
             
@@ -491,17 +615,17 @@
                 stopAllTimers(); 
                 let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
                 let attempts = 0;
-                while(playerTimes[nextPlayer] <= 0 && attempts < MAX_PLAYERS) {
+                while(isPlayerEffectivelyOutOfGame(nextPlayer) && attempts < MAX_PLAYERS) {
                     nextPlayer = (nextPlayer + 1) % MAX_PLAYERS; 
                     attempts++;
                 }
-                if (playerTimes[nextPlayer] > 0) {
+                if (!isPlayerEffectivelyOutOfGame(nextPlayer)) {
                     startTimerForPlayer(nextPlayer);
                 } else { 
                     isPaused = true; 
-                    activePlayerIndex = -1; // No one to pass to, game fully stops
+                    activePlayerIndex = -1; 
                     updateDisplay();
-                    alert("No other players with time remaining.");
+                    alert("No other active players remaining.");
                 }
             } else { 
                  startTimerForPlayer(clickedPlayerIndex);
@@ -515,42 +639,53 @@
             if (isPaused) { // Trying to PLAY
                 let playerToStartCandidate;
 
-                if (activePlayerIndex !== -1) {
-                    // If a player was active (even if they just timed out),
-                    // start searching from them.
+                if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                    // If a player was active and is still in game, resume them.
                     playerToStartCandidate = activePlayerIndex;
                 } else {
-                    // If game is fully stopped (activePlayerIndex is -1, e.g., after reset or all timed out),
-                    // start searching from currentTurnPlayerIndex (usually 0 after reset).
-                    playerToStartCandidate = currentTurnPlayerIndex;
+                    // Otherwise, find next available from currentTurnPlayerIndex or 0.
+                    playerToStartCandidate = currentTurnPlayerIndex; 
+                    if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) { //If currentTurnPlayer is out, search
+                         playerToStartCandidate = 0; // Start search from player 0
+                    }
                 }
 
                 let attempts = 0;
-                // Loop to find the next player with time, starting from playerToStartCandidate
-                while (playerTimes[playerToStartCandidate] <= 0 && attempts < MAX_PLAYERS) {
+                while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
                     playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
                     attempts++;
                 }
 
-                if (playerTimes[playerToStartCandidate] > 0) { // Found a player with time
-                    // isPaused will be set to false inside startTimerForPlayer
+                if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) { 
                     startTimerForPlayer(playerToStartCandidate);
-                } else { // All players checked (attempts === MAX_PLAYERS), none have time
-                    alert("All players are out of time. Reset or adjust settings.");
-                    // isPaused remains true. activePlayerIndex could be -1 or the last timed-out player.
-                    // currentTurnPlayerIndex will also be the index of a timed-out player or 0.
-                    updateDisplay(); // Ensure pause button icon is correct
+                } else { 
+                    alert("All players are out of the game. Reset or adjust settings.");
+                    isPaused = true; // Ensure it stays paused
+                    activePlayerIndex = -1;
+                    updateDisplay(); 
                 }
             } else { // Trying to PAUSE
                 isPaused = true;
                 stopAllTimers();
-                updateDisplay(); // Update pause button icon and active state
+                updateDisplay(); 
             }
-            // updateDisplay() is called within startTimerForPlayer or explicitly above.
         }
         
         pauseButton.addEventListener('click', togglePause);
-        document.querySelectorAll('.quadrant').forEach(quad => quad.addEventListener('click', handleQuadrantClick));
+        
+        document.querySelectorAll('.quadrant').forEach(quad => {
+            const playerIndex = parseInt(quad.dataset.playerIndex);
+            quad.addEventListener('click', handleQuadrantClick);
+            // Long press listeners
+            quad.addEventListener('mousedown', (e) => handlePressStart(e, playerIndex));
+            quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false }); // passive false to allow preventDefault
+            quad.addEventListener('mouseup', (e) => handlePressEnd(e, playerIndex));
+            quad.addEventListener('mouseleave', (e) => handlePressEnd(e, playerIndex)); // Cancel long press if mouse leaves
+            quad.addEventListener('touchend', (e) => handlePressEnd(e, playerIndex));
+            quad.addEventListener('touchcancel', (e) => handlePressEnd(e, playerIndex));
+            quad.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on right-click/long-touch
+        });
+
 
         function applyAndResetGame() {
             let timeFromInput = parseInt(initialTimeInput.value);
@@ -588,9 +723,10 @@
             isPaused = true;
             fullscreenAttemptedInLandscape = false;
             gameHasStartedOnce = false; 
+            longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i])); // Clear any stray long press timers
 
             document.querySelectorAll('.quadrant').forEach(q => {
-                q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation');
+                q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing');
                 const logicalIndex = parseInt(q.dataset.playerIndex);
                 q.style.backgroundImage = playerOriginalBg[logicalIndex] || getDefaultBgForPlayer(logicalIndex);
             });
@@ -613,39 +749,13 @@
             const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                // Use saved time if valid, otherwise default. Input field reflects this.
-                let loadedTime = (settings.initialTime && settings.initialTime >=1) ? settings.initialTime : DEFAULT_INITIAL_TIME_MINUTES;
-                initialTimeInput.value = loadedTime; 
-                // initialTimeMinutes will be set by applyAndResetGame based on this input value.
-                
-                colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
-                colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
-                colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
-                colorEndInputs[1].value = settings.p1ColorEnd || '#0D47A1'; // Typo: Should be settings.p2ColorEnd
-                colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
-                colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
-                colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
-                colorEndInputs[3].value = settings.p4ColorEnd || '#FF6F00';  
-            } else {
-                // No saved settings, input field keeps its HTML default "20"
-                // or is set to DEFAULT_INITIAL_TIME_MINUTES explicitly if needed
-                initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
-            }
-            applyAndResetGame(); 
-        }
-        
-        // Correction for a minor typo I spotted in loadSettings during review:
-        function loadSettingsCorrected() {
-            const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
-            if (savedSettings) {
-                const settings = JSON.parse(savedSettings);
                 let loadedTime = (settings.initialTime && parseInt(settings.initialTime) >=1) ? parseInt(settings.initialTime) : DEFAULT_INITIAL_TIME_MINUTES;
                 initialTimeInput.value = loadedTime; 
                 
                 colorStartInputs[0].value = settings.p1ColorStart || '#D32F2F';
                 colorEndInputs[0].value = settings.p1ColorEnd || '#B71C1C';
                 colorStartInputs[1].value = settings.p2ColorStart || '#1976D2';
-                colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1'; // Corrected from p1ColorEnd
+                colorEndInputs[1].value = settings.p2ColorEnd || '#0D47A1'; 
                 colorStartInputs[2].value = settings.p3ColorStart || '#388E3C';
                 colorEndInputs[2].value = settings.p3ColorEnd || '#1B5E20';  
                 colorStartInputs[3].value = settings.p4ColorStart || '#FFA000';
@@ -663,7 +773,7 @@
         window.addEventListener('click', (event) => { if (event.target == settingsModal) settingsModal.style.display = 'none'; });
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSettingsCorrected(); // Use the corrected version
+            loadSettings();
         });
     </script>
 </body>
