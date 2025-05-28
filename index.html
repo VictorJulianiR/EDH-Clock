@@ -355,8 +355,21 @@
                 <button id="close-settings">Close</button>
             </div>
 
-            <label for="initial-time">Initial Time (minutes):</label>
-            <input type="number" id="initial-time" value="20" min="1">
+            <details class="settings-collapsible" open>
+                <summary>Timer Settings</summary>
+                <div class="collapsible-content">
+                    <label for="initial-base-time">Base Time (minutes):</label>
+                    <input type="number" id="initial-base-time" value="20" min="1">
+
+                    <label for="time-addition-seconds">Addition per turn (seconds):</label>
+                    <input type="number" id="time-addition-seconds" value="0" min="0">
+
+                    <div class="settings-checkbox-group" style="margin-top: 15px;"> 
+                        <input type="checkbox" id="full-rotation-increment-toggle">
+                        <label for="full-rotation-increment-toggle">Increment time only after player completes their official turn in expected sequence (ignore priority passes)</label>
+                    </div>
+                </div>
+            </details>
             
             <details class="settings-collapsible">
                 <summary>Player Customizations</summary>
@@ -416,7 +429,7 @@
                     </div>
                     <div class="settings-checkbox-group">
                         <input type="checkbox" id="low-time-warning-toggle">
-                        <label for="low-time-warning-toggle">Enable Low Total Time Warning (< 10% of initial)</label>
+                        <label for="low-time-warning-toggle">Enable Low Total Time Warning (< 25% of initial)</label> 
                     </div>
                 </div>
             </details>
@@ -444,41 +457,43 @@
     </div>
 
     <script>
-        // AT THE TOP OF YOUR SCRIPT, REPLACE/ADD THIS:
-        const DEFAULT_INITIAL_TIME_MINUTES = 20;
+        const DEFAULT_INITIAL_BASE_MINUTES = 20;
+        const DEFAULT_INITIAL_ADDITION_SECONDS = 0;
         const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2_VJ';
         const MAX_PLAYERS = 4;
         const LONG_PRESS_DURATION = 3000;
         const LONG_TURN_THRESHOLD_SECONDS = 60; 
         const LOW_TIME_PERCENTAGE_THRESHOLD = 0.25;
 
+        // Updated to match default HTML color picker values
         const DEFAULT_PLAYER_CONFIGS = [
-            { name: "Player 1", colorStart: '#e88a8a', colorEnd: '#cc5c5c', cssVarStart: '--p1-color-start', cssVarEnd: '--p1-color-end' },
-            { name: "Player 2", colorStart: '#64b5f6', colorEnd: '#1976d2', cssVarStart: '--p2-color-start', cssVarEnd: '--p2-color-end' },
-            { name: "Player 3", colorStart: '#81c784', colorEnd: '#388e3c', cssVarStart: '--p3-color-start', cssVarEnd: '--p3-color-end' },
-            { name: "Player 4", colorStart: '#e1b382', colorEnd: '#d18f52', cssVarStart: '--p4-color-start', cssVarEnd: '--p4-color-end' }
+            { name: "Player 1", colorStart: '#9128d2', colorEnd: '#4a148c', cssVarStart: '--p1-color-start', cssVarEnd: '--p1-color-end' },
+            { name: "Player 2", colorStart: '#1976D2', colorEnd: '#0D47A1', cssVarStart: '--p2-color-start', cssVarEnd: '--p2-color-end' },
+            { name: "Player 3", colorStart: '#388E3C', colorEnd: '#1B5E20', cssVarStart: '--p3-color-start', cssVarEnd: '--p3-color-end' },
+            { name: "Player 4", colorStart: '#8d6e63', colorEnd: '#5d4037', cssVarStart: '--p4-color-start', cssVarEnd: '--p4-color-end' }
         ];
 
-
         let playerTimes = [];
-        let playerNames = DEFAULT_PLAYER_CONFIGS.map(p => p.name); // Initialize from new defaults
+        let playerNames = DEFAULT_PLAYER_CONFIGS.map(p => p.name);
         let playerOriginalBg = Array(MAX_PLAYERS).fill('');
         let activePlayerIndex = -1; 
         let currentTurnPlayerIndex = 0; 
         let timerInterval = null;
         let isPaused = true;
-        let initialTimeMinutes = DEFAULT_INITIAL_TIME_MINUTES;
+        let initialBaseTimeMinutes = DEFAULT_INITIAL_BASE_MINUTES;
+        let timeAdditionSecondsPerTurn = DEFAULT_INITIAL_ADDITION_SECONDS;
         let fullscreenAttemptedInLandscape = false;
         let gameHasStartedOnce = false; 
         
         let longPressTimers = [null, null, null, null];
         let longPressActionTakenFlags = [false, false, false, false];
 
-        // Warning system variables
         let isLongTurnWarningEnabled = false;
         let isLowTimeWarningEnabled = false;
         let playerTurnStartTimestamps = [null, null, null, null]; 
 
+        let isFullRotationIncrementEnabled = false; 
+        let mainTurnHolderIndex = 0;             
 
         let audioContext;
         function initAudioContext() {
@@ -544,7 +559,10 @@
         const settingsModal = document.getElementById('settings-modal');
         const applySettingsButton = document.getElementById('apply-settings');
         const closeSettingsButton = document.getElementById('close-settings');
-        const initialTimeInput = document.getElementById('initial-time');
+        
+        const initialBaseTimeInput = document.getElementById('initial-base-time');
+        const timeAdditionSecondsInput = document.getElementById('time-addition-seconds');
+        const fullRotationIncrementToggle = document.getElementById('full-rotation-increment-toggle');
         
         const playerNameInputs = [
             document.getElementById('p1-name-input'), document.getElementById('p2-name-input'),
@@ -626,7 +644,7 @@
                 let needsRed = false;
 
                 if (isLowTimeWarningEnabled) {
-                    const lowTimeThresholdValue = (initialTimeMinutes * 60) * LOW_TIME_PERCENTAGE_THRESHOLD;
+                    const lowTimeThresholdValue = (initialBaseTimeMinutes * 60) * LOW_TIME_PERCENTAGE_THRESHOLD;
                     if (playerTimes[i] > 0 && playerTimes[i] <= lowTimeThresholdValue) {
                         needsRed = true;
                     }
@@ -720,6 +738,7 @@
                 updateDisplay();
                 return;
             }
+
             stopAllTimers(); 
             activePlayerIndex = playerIndex;
             currentTurnPlayerIndex = playerIndex; 
@@ -761,24 +780,55 @@
                 if (!isPaused) togglePause();
                 return;
             }
-            if (playerTurnStartTimestamps[activePlayerIndex] !== null) {
-                playerTurnStartTimestamps[activePlayerIndex] = null;
+            
+            const playerEndingTurn = activePlayerIndex; 
+
+            if (playerTurnStartTimestamps[playerEndingTurn] !== null) {
+                playerTurnStartTimestamps[playerEndingTurn] = null;
             }
-            stopAllTimers();
-            let nextPlayer = (activePlayerIndex + 1) % MAX_PLAYERS;
+
+            if (isFullRotationIncrementEnabled) {
+                if (playerEndingTurn === mainTurnHolderIndex && 
+                    !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
+                    timeAdditionSecondsPerTurn > 0) {
+                    
+                    playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
+
+                    let nextMainTurnHolder = (mainTurnHolderIndex + 1) % MAX_PLAYERS;
+                    let advanceAttempts = 0;
+                    while (isPlayerEffectivelyOutOfGame(nextMainTurnHolder) && advanceAttempts < MAX_PLAYERS) {
+                        nextMainTurnHolder = (nextMainTurnHolder + 1) % MAX_PLAYERS;
+                        advanceAttempts++;
+                    }
+                    if (advanceAttempts < MAX_PLAYERS) {
+                        mainTurnHolderIndex = nextMainTurnHolder;
+                    }
+                }
+            } else {
+                if (playerEndingTurn !== -1 && 
+                    !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
+                    timeAdditionSecondsPerTurn > 0) {
+                    playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
+                }
+            }
+            
+            stopAllTimers(); 
+
+            let nextPlayer = (playerEndingTurn + 1) % MAX_PLAYERS; 
             let attempts = 0;
             while (isPlayerEffectivelyOutOfGame(nextPlayer) && attempts < MAX_PLAYERS) {
                 nextPlayer = (nextPlayer + 1) % MAX_PLAYERS;
                 attempts++;
             }
+
             if (attempts < MAX_PLAYERS && !isPlayerEffectivelyOutOfGame(nextPlayer)) {
                 startTimerForPlayer(nextPlayer); 
             } else {
                 isPaused = true;
                 activePlayerIndex = -1; 
                 alert("No other active players remaining. Game paused.");
-                updateDisplay();
             }
+            updateDisplay(); 
         }
 
         function handlePressStart(event, playerIndex) {
@@ -820,18 +870,49 @@
             }
             initAudioContext(); 
             attemptFullscreenOnMobileLandscape();
+
             if (isPaused) { 
-                startTimerForPlayer(clickedPlayerIndex); 
+                startTimerForPlayer(clickedPlayerIndex);
                 return; 
             }
-            if (activePlayerIndex === clickedPlayerIndex) passTurnFromActivePlayer();
-            else startTimerForPlayer(clickedPlayerIndex);
+
+            if (activePlayerIndex === clickedPlayerIndex) {
+                 passTurnFromActivePlayer(); 
+            } else { 
+                const playerEndingTurn = activePlayerIndex;
+
+                if (isFullRotationIncrementEnabled) {
+                    if (playerEndingTurn === mainTurnHolderIndex && 
+                        !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
+                        timeAdditionSecondsPerTurn > 0) {
+                        
+                        playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
+
+                        let nextMainTurnHolder = (mainTurnHolderIndex + 1) % MAX_PLAYERS;
+                        let advanceAttempts = 0;
+                        while (isPlayerEffectivelyOutOfGame(nextMainTurnHolder) && advanceAttempts < MAX_PLAYERS) {
+                            nextMainTurnHolder = (nextMainTurnHolder + 1) % MAX_PLAYERS;
+                            advanceAttempts++;
+                        }
+                        if (advanceAttempts < MAX_PLAYERS) {
+                            mainTurnHolderIndex = nextMainTurnHolder;
+                        }
+                    }
+                } else {
+                    if (playerEndingTurn !== -1 && 
+                        !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
+                        timeAdditionSecondsPerTurn > 0) {
+                        playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
+                    }
+                }
+                startTimerForPlayer(clickedPlayerIndex);
+            }
         }
 
         function togglePause() {
             initAudioContext();
             attemptFullscreenOnMobileLandscape();
-            if (isPaused) {
+            if (isPaused) { 
                 let playerToStartCandidate;
                 if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
                     playerToStartCandidate = activePlayerIndex;
@@ -839,13 +920,16 @@
                     playerToStartCandidate = currentTurnPlayerIndex; 
                     if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) playerToStartCandidate = 0;
                 }
+                
                 let attempts = 0;
                 while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
                     playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
                     attempts++;
                 }
-                if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) startTimerForPlayer(playerToStartCandidate);
-                else { 
+
+                if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
+                    startTimerForPlayer(playerToStartCandidate); 
+                } else { 
                     alert("All players are out of the game. Reset or adjust settings.");
                     isPaused = true; 
                     activePlayerIndex = -1;
@@ -880,21 +964,26 @@
                 event.preventDefault();
                 initAudioContext(); 
                 attemptFullscreenOnMobileLandscape(); 
-                if (!isPaused && activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) passTurnFromActivePlayer();
-                else if (isPaused) {
+                if (!isPaused && activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                    passTurnFromActivePlayer(); 
+                } else if (isPaused) {
                     let playerToStartCandidate;
-                    if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) playerToStartCandidate = activePlayerIndex;
-                    else {
+                    if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                        playerToStartCandidate = activePlayerIndex;
+                    } else {
                         playerToStartCandidate = currentTurnPlayerIndex; 
                         if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) playerToStartCandidate = 0; 
-                        let attempts = 0;
-                        while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
-                            playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
-                            attempts++;
-                        }
                     }
-                    if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) startTimerForPlayer(playerToStartCandidate);
-                    else {
+                    
+                    let attempts = 0;
+                    while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
+                        playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
+                        attempts++;
+                    }
+                    
+                    if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
+                        startTimerForPlayer(playerToStartCandidate); 
+                    } else {
                         alert("No player can be started. Reset or adjust settings.");
                         playBeep(200, 0.15, 'sawtooth', 0.2);
                     }
@@ -903,28 +992,34 @@
         });
 
         function applyAndResetGame() {
-            let timeFromInput = parseInt(initialTimeInput.value);
-            initialTimeMinutes = (timeFromInput && timeFromInput >= 1) ? timeFromInput : DEFAULT_INITIAL_TIME_MINUTES;
-            if (initialTimeMinutes < 1) initialTimeMinutes = 1;
+            let baseTimeFromInput = parseInt(initialBaseTimeInput.value);
+            initialBaseTimeMinutes = (baseTimeFromInput && baseTimeFromInput >= 1) ? baseTimeFromInput : DEFAULT_INITIAL_BASE_MINUTES;
+            if (initialBaseTimeMinutes < 1) initialBaseTimeMinutes = 1;
 
-            let settingsToSave = {
-                initialTime: initialTimeMinutes,
-                longTurnWarningEnabled: longTurnWarningToggle.checked,
-                lowTimeWarningEnabled: lowTimeWarningToggle.checked
-            };
-            
+            let additionFromInput = parseInt(timeAdditionSecondsInput.value);
+            timeAdditionSecondsPerTurn = (additionFromInput && additionFromInput >= 0) ? additionFromInput : DEFAULT_INITIAL_ADDITION_SECONDS;
+            if (timeAdditionSecondsPerTurn < 0) timeAdditionSecondsPerTurn = 0;
+
             isLongTurnWarningEnabled = longTurnWarningToggle.checked;
             isLowTimeWarningEnabled = lowTimeWarningToggle.checked;
+            isFullRotationIncrementEnabled = fullRotationIncrementToggle.checked; 
 
+            let settingsToSave = {
+                initialBaseTime: initialBaseTimeMinutes,
+                timeAdditionSeconds: timeAdditionSecondsPerTurn,
+                longTurnWarningEnabled: isLongTurnWarningEnabled,
+                lowTimeWarningEnabled: isLowTimeWarningEnabled,
+                fullRotationIncrementEnabled: isFullRotationIncrementEnabled 
+            };
+            
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 const config = DEFAULT_PLAYER_CONFIGS[i]; 
-
                 playerNames[i] = playerNameInputs[i].value.trim() || config.name;
                 playerNameInputs[i].value = playerNames[i]; 
                 settingsToSave[`p${i+1}Name`] = playerNames[i];
                 
-                const startColor = colorStartInputs[i].value; // Should be valid hex from picker
-                const endColor = colorEndInputs[i].value;   // Should be valid hex from picker
+                const startColor = colorStartInputs[i].value;
+                const endColor = colorEndInputs[i].value;  
 
                 rootStyle.setProperty(config.cssVarStart, startColor);
                 rootStyle.setProperty(config.cssVarEnd, endColor);
@@ -946,7 +1041,7 @@
 
         function resetGame() {
             stopAllTimers();
-            playerTimes = Array(MAX_PLAYERS).fill(initialTimeMinutes * 60);
+            playerTimes = Array(MAX_PLAYERS).fill(initialBaseTimeMinutes * 60);
             activePlayerIndex = -1; 
             currentTurnPlayerIndex = 0; 
             isPaused = true;
@@ -955,6 +1050,7 @@
             longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i]));
             longPressActionTakenFlags = [false, false, false, false]; 
             playerTurnStartTimestamps.fill(null);
+            mainTurnHolderIndex = 0; 
 
             document.querySelectorAll('.quadrant').forEach(q => {
                 q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing', 'yellow-warning', 'red-warning');
@@ -963,8 +1059,7 @@
                 if (playerOriginalBg[logicalIndex] && playerOriginalBg[logicalIndex].startsWith('linear-gradient')) {
                      q.style.backgroundImage = playerOriginalBg[logicalIndex];
                 } else {
-                    // Fallback if playerOriginalBg is somehow not set or invalid
-                    console.error(`playerOriginalBg invalid or not set for player ${logicalIndex}. Using CSS variables directly from config.`);
+                    console.warn(`playerOriginalBg invalid or not set for player ${logicalIndex}. Using CSS variables from config.`);
                     const conf = DEFAULT_PLAYER_CONFIGS[logicalIndex];
                     q.style.backgroundImage = `linear-gradient(135deg, var(${conf.cssVarStart}), var(${conf.cssVarEnd}))`;
                 }
@@ -980,13 +1075,14 @@
 
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                initialTimeInput.value = (settings.initialTime && parseInt(settings.initialTime) >= 1) ? 
-                                         parseInt(settings.initialTime) : DEFAULT_INITIAL_TIME_MINUTES;
+                initialBaseTimeInput.value = (settings.initialBaseTime && parseInt(settings.initialBaseTime) >= 1) ? 
+                                         parseInt(settings.initialBaseTime) : DEFAULT_INITIAL_BASE_MINUTES;
+                timeAdditionSecondsInput.value = (settings.timeAdditionSeconds !== undefined && parseInt(settings.timeAdditionSeconds) >= 0) ?
+                                                 parseInt(settings.timeAdditionSeconds) : DEFAULT_INITIAL_ADDITION_SECONDS;
                 
                 for (let i = 0; i < MAX_PLAYERS; i++) {
                     const config = DEFAULT_PLAYER_CONFIGS[i];
                     playerNameInputs[i].value = settings[`p${i+1}Name`] || config.name;
-                    // Ensure valid hex from storage, or use default hex
                     colorStartInputs[i].value = (settings[`p${i+1}ColorStart`] && settings[`p${i+1}ColorStart`].startsWith('#')) ? settings[`p${i+1}ColorStart`] : config.colorStart;
                     colorEndInputs[i].value = (settings[`p${i+1}ColorEnd`] && settings[`p${i+1}ColorEnd`].startsWith('#')) ? settings[`p${i+1}ColorEnd`] : config.colorEnd;
                 }
@@ -994,8 +1090,12 @@
                 longTurnWarningToggle.checked = isLongTurnWarningEnabled;
                 isLowTimeWarningEnabled = settings.lowTimeWarningEnabled === true; 
                 lowTimeWarningToggle.checked = isLowTimeWarningEnabled;
+                isFullRotationIncrementEnabled = settings.fullRotationIncrementEnabled === true; 
+                fullRotationIncrementToggle.checked = isFullRotationIncrementEnabled;             
+
             } else {
-                initialTimeInput.value = DEFAULT_INITIAL_TIME_MINUTES;
+                initialBaseTimeInput.value = DEFAULT_INITIAL_BASE_MINUTES;
+                timeAdditionSecondsInput.value = DEFAULT_INITIAL_ADDITION_SECONDS;
                 for (let i = 0; i < MAX_PLAYERS; i++) {
                     const config = DEFAULT_PLAYER_CONFIGS[i];
                     playerNameInputs[i].value = config.name;
@@ -1006,6 +1106,8 @@
                 longTurnWarningToggle.checked = false;
                 isLowTimeWarningEnabled = false;
                 lowTimeWarningToggle.checked = false;
+                isFullRotationIncrementEnabled = false; 
+                fullRotationIncrementToggle.checked = false;
             }
             applyAndResetGame(); 
         }
@@ -1017,6 +1119,11 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
+            // Corrected Low Time Warning label for consistency with JS constant
+            const lowTimeWarningLabel = document.querySelector('label[for="low-time-warning-toggle"]');
+            if(lowTimeWarningLabel) {
+                lowTimeWarningLabel.textContent = `Enable Low Total Time Warning (< ${LOW_TIME_PERCENTAGE_THRESHOLD * 100}% of initial)`;
+            }
         });
     </script>
 </body>
