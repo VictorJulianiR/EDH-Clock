@@ -455,6 +455,49 @@
             <div class="settings-credits">
                 Created by <a href="https://github.com/VictorJuliani" target="_blank" rel="noopener noreferrer">Victor Juliani</a>
             </div>
+
+            <!-- START PAYPAL DONATION BUTTON SECTION -->
+            <div id="donate-button-container" style="text-align: center; margin-top: 25px; margin-bottom: 10px;">
+                <div id="donate-button">
+                    <!-- Fallback content if JS fails or SDK is blocked -->
+                    <a href="https://www.paypal.com/donate/?hosted_button_id=69S697PCL4378" target="_blank" rel="noopener noreferrer" title="PayPal - The safer, easier way to pay online!">
+                        <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" alt="Donate with PayPal button" style="border:0;" />
+                    </a>
+                </div>
+                <script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
+                <script>
+                try {
+                    // This assumes the PayPal SDK script above has loaded and defined 'PayPal'
+                    if (typeof PayPal !== 'undefined' && PayPal.Donation && typeof PayPal.Donation.Button === 'function') {
+                        var donateButtonElement = document.getElementById('donate-button');
+                        if(donateButtonElement) {
+                            donateButtonElement.innerHTML = ''; // Clear fallback HTML before rendering
+                        }
+                        PayPal.Donation.Button({
+                            env:'production',
+                            hosted_button_id:'69S697PCL4378',
+                            image: {
+                                src:'https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif',
+                                alt:'Donate with PayPal button',
+                                title:'PayPal - The safer, easier way to pay online!',
+                            }
+                        }).render('#donate-button');
+                    } else {
+                        // PayPal SDK script might have loaded but didn't define things as expected,
+                        // or it was blocked (PayPal is undefined).
+                        // In this case, the static fallback HTML (already in the #donate-button div) remains and should work.
+                        console.warn('PayPal SDK not fully available. Static fallback donation link will be used.');
+                    }
+                } catch (error) {
+                    console.error('Failed to render PayPal button:', error);
+                    // If an error occurred, the static fallback HTML should ideally still be there.
+                    // If it was cleared and then an error happened, that's an edge case.
+                    // The primary safety is the initial static fallback.
+                }
+                </script>
+            </div>
+            <!-- END PAYPAL DONATION BUTTON SECTION -->
+
         </div>
     </div>
 
@@ -584,6 +627,15 @@
         const rootStyle = document.documentElement.style;
 
         function getQuadrantDOM(playerIndex) {
+            // The quadrants are P1, P2, P4(idx3), P3(idx2) visually
+            // data-player-index should be logical 0, 1, 2, 3
+            // HTML is player1 (idx 0), player2 (idx 1), player3 (idx 3 visual, but links to time4), player4 (idx 2 visual, but links to time3)
+            // The `data-player-index` attribute is already correctly set up to be 0, 1, 2, 3 for the logical players.
+            // Player 1: data-player-index="0"
+            // Player 2: data-player-index="1"
+            // Player 3: id="player4", data-player-index="2" (displays time3)
+            // Player 4: id="player3", data-player-index="3" (displays time4)
+            // This means `getQuadrantDOM(2)` will get the element for player 3, `getQuadrantDOM(3)` for player 4.
             return document.querySelector(`.quadrant[data-player-index="${playerIndex}"]`);
         }
         
@@ -674,8 +726,10 @@
 
         function updateDisplay() {
             for (let i = 0; i < MAX_PLAYERS; i++) {
+                // timeDisplayElements are ordered 0,1,2,3 for player 1,2,3,4's times
+                // playerTimes array is also 0,1,2,3 for player 1,2,3,4's times
                 timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
-                const qElement = getQuadrantDOM(i);
+                const qElement = getQuadrantDOM(i); // This gets the quadrant visually associated with player i
                 if (qElement) {
                     if (i === activePlayerIndex && !isPaused && !isPlayerEffectivelyOutOfGame(i)) {
                         qElement.classList.add('active');
@@ -724,7 +778,6 @@
                  setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
                  playBeep(880, 0.2, 'square', 0.4); 
                  playBeep(880, 0.2, 'square', 0.4); 
-                 //alert(`${playerNames[playerIndex]} is out of time!`);
             }
             
             if (activePlayerIndex === playerIndex) {
@@ -828,7 +881,7 @@
             } else {
                 isPaused = true;
                 activePlayerIndex = -1; 
-                alert("No other active players remaining. Game paused.");
+                // alert("No other active players remaining. Game paused."); // Consider if this alert is too intrusive
             }
             updateDisplay(); 
         }
@@ -836,14 +889,14 @@
         function handlePressStart(event, playerIndex) {
             const quadrant = getQuadrantDOM(playerIndex);
             if (!quadrant || isPlayerEffectivelyOutOfGame(playerIndex)) return;
-            if (event.type === 'mousedown') event.preventDefault();
+            if (event.type === 'mousedown') event.preventDefault(); // Prevent text selection/drag
             clearTimeout(longPressTimers[playerIndex]);
             longPressActionTakenFlags[playerIndex] = false; 
             quadrant.classList.add('long-pressing');
             longPressTimers[playerIndex] = setTimeout(() => {
-                if (quadrant.classList.contains('long-pressing')) {
+                if (quadrant.classList.contains('long-pressing')) { // Check if still pressing
                     manuallyDisablePlayer(playerIndex);
-                    longPressActionTakenFlags[playerIndex] = true;
+                    longPressActionTakenFlags[playerIndex] = true; // Flag that action was taken
                     quadrant.classList.remove('long-pressing'); 
                 }
                 longPressTimers[playerIndex] = null; 
@@ -857,17 +910,21 @@
                 longPressTimers[playerIndex] = null; 
             }
             if (quadrant) quadrant.classList.remove('long-pressing');
+            // Do not reset longPressActionTakenFlags[playerIndex] here, it's reset in click handler
         }
 
         function handleQuadrantClick(event) {
             const clickedQuadrant = event.currentTarget;
             const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
+
             if (longPressActionTakenFlags[clickedPlayerIndex]) {
-                longPressActionTakenFlags[clickedPlayerIndex] = false; 
-                return;
+                longPressActionTakenFlags[clickedPlayerIndex] = false; // Reset flag for next interaction
+                return; // Don't process click if long press action occurred
             }
+
             if (isPlayerEffectivelyOutOfGame(clickedPlayerIndex)) {
-                alert(`${playerNames[clickedPlayerIndex]} is out of the game.`);
+                // alert(`${playerNames[clickedPlayerIndex]} is out of the game.`); // Can be noisy
+                playBeep(150, 0.1, 'triangle', 0.2);
                 return;
             }
             initAudioContext(); 
@@ -881,15 +938,23 @@
             if (activePlayerIndex === clickedPlayerIndex) {
                  passTurnFromActivePlayer(); 
             } else { 
-                const playerEndingTurn = activePlayerIndex;
+                // Passing priority to a different player
+                const playerEndingTurn = activePlayerIndex; // Could be -1 if no one was active but game not paused (should not happen)
 
+                // Apply time addition if applicable, even on priority pass
                 if (isFullRotationIncrementEnabled) {
+                    // Only add time if the player ending their active phase was the main turn holder
                     if (playerEndingTurn === mainTurnHolderIndex && 
+                        playerEndingTurn !== -1 && // Ensure there was an active player
                         !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
                         timeAdditionSecondsPerTurn > 0) {
                         
                         playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
 
+                        // Advance main turn holder ONLY if this pass also means they finished their "official" turn
+                        // This logic implies a priority pass to another player *is* ending their official turn.
+                        // If it's just a priority pass within their turn, mainTurnHolderIndex shouldn't change yet.
+                        // For simplicity in current model: assume any pass from main turn holder to another player advances it.
                         let nextMainTurnHolder = (mainTurnHolderIndex + 1) % MAX_PLAYERS;
                         let advanceAttempts = 0;
                         while (isPlayerEffectivelyOutOfGame(nextMainTurnHolder) && advanceAttempts < MAX_PLAYERS) {
@@ -900,7 +965,7 @@
                             mainTurnHolderIndex = nextMainTurnHolder;
                         }
                     }
-                } else {
+                } else { // Standard time addition on any pass
                     if (playerEndingTurn !== -1 && 
                         !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
                         timeAdditionSecondsPerTurn > 0) {
@@ -916,10 +981,12 @@
             attemptFullscreenOnMobileLandscape();
             if (isPaused) { 
                 let playerToStartCandidate;
+                // Try to resume with the last active player if they are still in game
                 if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
                     playerToStartCandidate = activePlayerIndex;
-                } else {
+                } else { // Otherwise, use currentTurnPlayerIndex (who was supposed to be next or was last active)
                     playerToStartCandidate = currentTurnPlayerIndex; 
+                    // If currentTurnPlayerIndex is also out, find the first available player from 0
                     if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) playerToStartCandidate = 0;
                 }
                 
@@ -932,15 +999,18 @@
                 if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
                     startTimerForPlayer(playerToStartCandidate); 
                 } else { 
-                    alert("All players are out of the game. Reset or adjust settings.");
-                    isPaused = true; 
+                    // alert("All players are out of the game. Reset or adjust settings.");
+                    isPaused = true; // Remain paused
                     activePlayerIndex = -1;
                     updateDisplay(); 
+                    playBeep(180, 0.15, 'sawtooth', 0.25);
                 }
-            } else { 
+            } else { // Game is running, so pause it
                 isPaused = true;
                 stopAllTimers(); 
+                // activePlayerIndex remains, so we know who was active when paused
                 updateDisplay(); 
+                playBeep(300, 0.08, 'triangle', 0.2);
             }
         }
         
@@ -949,47 +1019,36 @@
             const playerIndex = parseInt(quad.dataset.playerIndex);
             quad.addEventListener('click', handleQuadrantClick); 
             quad.addEventListener('mousedown', (e) => handlePressStart(e, playerIndex));
-            quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false });
+            quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false }); // passive:false for preventDefault in handler
             quad.addEventListener('mouseup', (e) => handlePressEnd(e, playerIndex));
-            quad.addEventListener('mouseleave', (e) => handlePressEnd(e, playerIndex)); 
+            quad.addEventListener('mouseleave', (e) => handlePressEnd(e, playerIndex)); // If mouse leaves while pressed
             quad.addEventListener('touchend', (e) => handlePressEnd(e, playerIndex));
             quad.addEventListener('touchcancel', (e) => handlePressEnd(e, playerIndex));
-            quad.addEventListener('contextmenu', (e) => e.preventDefault());
+            quad.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on long press
         });
 
         document.addEventListener('keydown', (event) => {
             const activeElement = document.activeElement;
             const isInputActive = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
             const isModalOpen = settingsModal.style.display === 'flex';
-            if (isModalOpen || isInputActive) return; 
+
+            if (isModalOpen || isInputActive) return; // Don't interfere with modal/input typing
+
             if (event.key === ' ' || event.code === 'Space') {
                 event.preventDefault();
                 initAudioContext(); 
                 attemptFullscreenOnMobileLandscape(); 
                 if (!isPaused && activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                    // If game is running and a player is active, spacebar acts like clicking active player's quadrant (pass turn)
                     passTurnFromActivePlayer(); 
                 } else if (isPaused) {
-                    let playerToStartCandidate;
-                    if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
-                        playerToStartCandidate = activePlayerIndex;
-                    } else {
-                        playerToStartCandidate = currentTurnPlayerIndex; 
-                        if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) playerToStartCandidate = 0; 
-                    }
-                    
-                    let attempts = 0;
-                    while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
-                        playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
-                        attempts++;
-                    }
-                    
-                    if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
-                        startTimerForPlayer(playerToStartCandidate); 
-                    } else {
-                        alert("No player can be started. Reset or adjust settings.");
-                        playBeep(200, 0.15, 'sawtooth', 0.2);
-                    }
-                } else playBeep(220, 0.1, 'sine', 0.2);
+                    // If game is paused, spacebar acts like clicking the pause/play button
+                    togglePause(); 
+                } else {
+                    // Game not paused, but no active player (e.g., all timed out but clock not technically paused by button)
+                    // This state should ideally be handled by togglePause attempting to find a player or staying paused.
+                    playBeep(220, 0.1, 'sine', 0.2); // Generic interaction sound
+                }
             }
         });
 
@@ -999,7 +1058,7 @@
             if (initialBaseTimeMinutes < 1) initialBaseTimeMinutes = 1;
 
             let additionFromInput = parseInt(timeAdditionSecondsInput.value);
-            timeAdditionSecondsPerTurn = (additionFromInput && additionFromInput >= 0) ? additionFromInput : DEFAULT_INITIAL_ADDITION_SECONDS;
+            timeAdditionSecondsPerTurn = (additionFromInput !== null && !isNaN(additionFromInput) && additionFromInput >= 0) ? additionFromInput : DEFAULT_INITIAL_ADDITION_SECONDS;
             if (timeAdditionSecondsPerTurn < 0) timeAdditionSecondsPerTurn = 0;
 
             isLongTurnWarningEnabled = longTurnWarningToggle.checked;
@@ -1017,7 +1076,7 @@
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 const config = DEFAULT_PLAYER_CONFIGS[i]; 
                 playerNames[i] = playerNameInputs[i].value.trim() || config.name;
-                playerNameInputs[i].value = playerNames[i]; 
+                playerNameInputs[i].value = playerNames[i]; // Update input field with trimmed or default name
                 settingsToSave[`p${i+1}Name`] = playerNames[i];
                 
                 const startColor = colorStartInputs[i].value;
@@ -1025,11 +1084,13 @@
 
                 rootStyle.setProperty(config.cssVarStart, startColor);
                 rootStyle.setProperty(config.cssVarEnd, endColor);
+                // Store the resolved gradient string for resetGame
                 playerOriginalBg[i] = `linear-gradient(135deg, ${startColor}, ${endColor})`;
                 
                 settingsToSave[`p${i+1}ColorStart`] = startColor;
                 settingsToSave[`p${i+1}ColorEnd`] = endColor;
 
+                // Update player name display on quadrant immediately (though resetGame will also do it)
                 const qElement = getQuadrantDOM(i);
                 if (qElement) {
                     const nameSpan = qElement.querySelector('.player-name');
@@ -1047,27 +1108,35 @@
             activePlayerIndex = -1; 
             currentTurnPlayerIndex = 0; 
             isPaused = true;
-            fullscreenAttemptedInLandscape = false;
+            fullscreenAttemptedInLandscape = false; // Reset this flag too
             gameHasStartedOnce = false; 
-            longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i]));
+            longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i])); // Clear any active long press timeouts
+            longPressTimers = [null, null, null, null];
             longPressActionTakenFlags = [false, false, false, false]; 
             playerTurnStartTimestamps.fill(null);
-            mainTurnHolderIndex = 0; 
+            mainTurnHolderIndex = 0; // Player 1 starts as the main turn holder
 
             document.querySelectorAll('.quadrant').forEach(q => {
                 q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing', 'yellow-warning', 'red-warning');
                 const logicalIndex = parseInt(q.dataset.playerIndex);
                 
+                // Apply background color from playerOriginalBg which was set in applyAndResetGame
                 if (playerOriginalBg[logicalIndex] && playerOriginalBg[logicalIndex].startsWith('linear-gradient')) {
                      q.style.backgroundImage = playerOriginalBg[logicalIndex];
                 } else {
+                    // Fallback if playerOriginalBg wasn't set (e.g. on initial load before settings applied)
+                    // This part should ideally not be needed if loadSettings calls applyAndResetGame
                     console.warn(`playerOriginalBg invalid or not set for player ${logicalIndex}. Using CSS variables from config.`);
-                    const conf = DEFAULT_PLAYER_CONFIGS[logicalIndex];
-                    q.style.backgroundImage = `linear-gradient(135deg, var(${conf.cssVarStart}), var(${conf.cssVarEnd}))`;
+                    const conf = DEFAULT_PLAYER_CONFIGS.find(p => p.cssVarStart.includes(`p${logicalIndex+1}-`)); // Find config by index
+                    if (conf) {
+                         q.style.backgroundImage = `linear-gradient(135deg, var(${conf.cssVarStart}), var(${conf.cssVarEnd}))`;
+                    } else {
+                         q.style.backgroundImage = ''; // Default or error state
+                    }
                 }
 
                 const nameSpan = q.querySelector('.player-name');
-                if (nameSpan) nameSpan.textContent = playerNames[logicalIndex];
+                if (nameSpan) nameSpan.textContent = playerNames[logicalIndex]; // playerNames is updated by applyAndResetGame
             });
             updateDisplay();
         }
@@ -1079,23 +1148,21 @@
                 const settings = JSON.parse(savedSettings);
                 initialBaseTimeInput.value = (settings.initialBaseTime && parseInt(settings.initialBaseTime) >= 1) ? 
                                          parseInt(settings.initialBaseTime) : DEFAULT_INITIAL_BASE_MINUTES;
-                timeAdditionSecondsInput.value = (settings.timeAdditionSeconds !== undefined && parseInt(settings.timeAdditionSeconds) >= 0) ?
+                timeAdditionSecondsInput.value = (settings.timeAdditionSeconds !== undefined && !isNaN(parseInt(settings.timeAdditionSeconds)) && parseInt(settings.timeAdditionSeconds) >= 0) ?
                                                  parseInt(settings.timeAdditionSeconds) : DEFAULT_INITIAL_ADDITION_SECONDS;
                 
                 for (let i = 0; i < MAX_PLAYERS; i++) {
-                    const config = DEFAULT_PLAYER_CONFIGS[i];
+                    const config = DEFAULT_PLAYER_CONFIGS[i]; // Use default as fallback
                     playerNameInputs[i].value = settings[`p${i+1}Name`] || config.name;
-                    colorStartInputs[i].value = (settings[`p${i+1}ColorStart`] && settings[`p${i+1}ColorStart`].startsWith('#')) ? settings[`p${i+1}ColorStart`] : config.colorStart;
-                    colorEndInputs[i].value = (settings[`p${i+1}ColorEnd`] && settings[`p${i+1}ColorEnd`].startsWith('#')) ? settings[`p${i+1}ColorEnd`] : config.colorEnd;
+                    // Ensure color values are valid hex codes
+                    colorStartInputs[i].value = (settings[`p${i+1}ColorStart`] && /^#[0-9A-F]{6}$/i.test(settings[`p${i+1}ColorStart`])) ? settings[`p${i+1}ColorStart`] : config.colorStart;
+                    colorEndInputs[i].value = (settings[`p${i+1}ColorEnd`] && /^#[0-9A-F]{6}$/i.test(settings[`p${i+1}ColorEnd`])) ? settings[`p${i+1}ColorEnd`] : config.colorEnd;
                 }
-                isLongTurnWarningEnabled = settings.longTurnWarningEnabled === true; 
-                longTurnWarningToggle.checked = isLongTurnWarningEnabled;
-                isLowTimeWarningEnabled = settings.lowTimeWarningEnabled === true; 
-                lowTimeWarningToggle.checked = isLowTimeWarningEnabled;
-                isFullRotationIncrementEnabled = settings.fullRotationIncrementEnabled === true; 
-                fullRotationIncrementToggle.checked = isFullRotationIncrementEnabled;             
+                longTurnWarningToggle.checked = settings.longTurnWarningEnabled === true; // Explicit boolean check
+                lowTimeWarningToggle.checked = settings.lowTimeWarningEnabled === true;
+                fullRotationIncrementToggle.checked = settings.fullRotationIncrementEnabled === true;             
 
-            } else {
+            } else { // No saved settings, use defaults
                 initialBaseTimeInput.value = DEFAULT_INITIAL_BASE_MINUTES;
                 timeAdditionSecondsInput.value = DEFAULT_INITIAL_ADDITION_SECONDS;
                 for (let i = 0; i < MAX_PLAYERS; i++) {
@@ -1104,23 +1171,29 @@
                     colorStartInputs[i].value = config.colorStart;
                     colorEndInputs[i].value = config.colorEnd;
                 }
-                isLongTurnWarningEnabled = false;
-                longTurnWarningToggle.checked = false;
-                isLowTimeWarningEnabled = false;
+                longTurnWarningToggle.checked = false; // Default for warnings
                 lowTimeWarningToggle.checked = false;
-                isFullRotationIncrementEnabled = false; 
-                fullRotationIncrementToggle.checked = false;
+                fullRotationIncrementToggle.checked = false; // Default for full rotation increment
             }
+            // Apply these loaded/default settings and reset the game state
             applyAndResetGame(); 
         }
 
         settingsToggleButton.addEventListener('click', () => { settingsModal.style.display = 'flex'; });
         closeSettingsButton.addEventListener('click', () => { settingsModal.style.display = 'none'; });
-        applySettingsButton.addEventListener('click', () => { applyAndResetGame(); settingsModal.style.display = 'none'; });
-        window.addEventListener('click', (event) => { if (event.target == settingsModal) settingsModal.style.display = 'none'; });
+        applySettingsButton.addEventListener('click', () => { 
+            applyAndResetGame(); 
+            settingsModal.style.display = 'none'; 
+        });
+        // Close modal if clicking outside the content
+        window.addEventListener('click', (event) => { 
+            if (event.target == settingsModal) {
+                settingsModal.style.display = 'none'; 
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSettings();
+            loadSettings(); // This will also call applyAndResetGame and resetGame internally
             // Corrected Low Time Warning label for consistency with JS constant
             const lowTimeWarningLabel = document.querySelector('label[for="low-time-warning-toggle"]');
             if(lowTimeWarningLabel) {
