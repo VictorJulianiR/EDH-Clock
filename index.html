@@ -62,8 +62,6 @@
 
         #clock-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
             width: 100%;
             height: 100%;
             position: relative;
@@ -83,6 +81,7 @@
             padding: 10px;
             box-sizing: border-box;
             border-radius: 8px; 
+            overflow: hidden; 
         }
         .quadrant.long-pressing {
             filter: brightness(0.7) contrast(1.1);
@@ -104,6 +103,12 @@
             position: relative;
             z-index: 2; 
         }
+        
+        .quadrant.rotate-180 .player-name,
+        .quadrant.rotate-180 .time-display {
+            transform: rotate(180deg);
+        }
+
 
         .quadrant.active::before {
             opacity: 0; 
@@ -171,14 +176,14 @@
         }
 
         .player-name {
-            font-size: clamp(16px, 4vmin, 30px);
+            font-size: clamp(14px, 3.5vmin, 28px);
             margin-bottom: 1vh;
             opacity: 0.9;
         }
 
         .time-display {
             font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
-            font-size: clamp(32px, 12vmin, 100px);
+            font-size: clamp(28px, 10vmin, 90px); 
             letter-spacing: -0.02em;
         }
 
@@ -323,27 +328,14 @@
         .settings-credits a:hover {
             color: #ffffff; text-decoration: underline;
         }
+        hr.player-customization-divider {
+            border-color: #555; margin: 15px 0;
+        }
     </style>
 </head>
 <body>
     <div id="clock-container">
-        <div class="quadrant" id="player1" data-player-index="0">
-            <span class="player-name">Player 1</span>
-            <span class="time-display" id="time1">00:00</span>
-        </div>
-        <div class="quadrant" id="player2" data-player-index="1">
-            <span class="player-name">Player 2</span>
-            <span class="time-display" id="time2">00:00</span>
-        </div>
-        <div class="quadrant" id="player3" data-player-index="3"> 
-            <span class="player-name">Player 4</span>
-            <span class="time-display" id="time4">00:00</span>
-        </div>
-        <div class="quadrant" id="player4" data-player-index="2"> 
-            <span class="player-name">Player 3</span>
-            <span class="time-display" id="time3">00:00</span>
-        </div>
-        <div id="pause-button">▶️</div>
+        <!-- Quadrants will be dynamically generated here by JavaScript -->
     </div>
 
     <button id="settings-toggle">⚙️</button>
@@ -357,7 +349,7 @@
                 <button id="close-settings">Close</button>
             </div>
 
-            <details class="settings-collapsible" open>
+            <details class="settings-collapsible">
                 <summary>Timer Settings</summary>
                 <div class="collapsible-content">
                     <label for="initial-base-time">Base Time (minutes):</label>
@@ -370,54 +362,21 @@
                         <input type="checkbox" id="full-rotation-increment-toggle">
                         <label for="full-rotation-increment-toggle">Increment time only after player completes their official turn in expected sequence (ignore priority passes)</label>
                     </div>
+                    <div class="settings-checkbox-group" style="margin-top: 15px;"> 
+                        <input type="checkbox" id="count-up-toggle">
+                        <label for="count-up-toggle">Enable Count Up Timer (00:00 upwards)</label>
+                    </div>
                 </div>
             </details>
             
-            <details class="settings-collapsible">
+            <details class="settings-collapsible" open> <!-- Made this open by default -->
                 <summary>Player Customizations</summary>
                 <div class="collapsible-content">
-                    <div>
-                        <label for="p1-name-input">Player 1 Name:</label>
-                        <input type="text" id="p1-name-input" placeholder="Player 1">
-                        <div class="color-setting-group">
-                            <label for="p1-color-start-input">P1 Colors Start:</label>
-                            <input type="color" id="p1-color-start-input" value="#9128d2">
-                            <label for="p1-color-end-input" style="margin-left:10px;">End:</label>
-                            <input type="color" id="p1-color-end-input" value="#4a148c">
-                        </div>
-                    </div>
-                    <hr style="border-color: #555; margin: 15px 0;">
-                    <div>
-                        <label for="p2-name-input">Player 2 Name:</label>
-                        <input type="text" id="p2-name-input" placeholder="Player 2">
-                        <div class="color-setting-group">
-                            <label for="p2-color-start-input">P2 Colors Start:</label>
-                            <input type="color" id="p2-color-start-input" value="#1976D2">
-                            <label for="p2-color-end-input" style="margin-left:10px;">End:</label>
-                            <input type="color" id="p2-color-end-input" value="#0D47A1">
-                        </div>
-                    </div>
-                    <hr style="border-color: #555; margin: 15px 0;">
-                    <div>
-                        <label for="p3-name-input">Player 3 Name:</label>
-                        <input type="text" id="p3-name-input" placeholder="Player 3">
-                        <div class="color-setting-group">
-                            <label for="p3-color-start-input">P3 Colors Start:</label>
-                            <input type="color" id="p3-color-start-input" value="#388E3C">
-                            <label for="p3-color-end-input" style="margin-left:10px;">End:</label>
-                            <input type="color" id="p3-color-end-input" value="#1B5E20">
-                        </div>
-                    </div>
-                    <hr style="border-color: #555; margin: 15px 0;">
-                    <div>
-                        <label for="p4-name-input">Player 4 Name:</label>
-                        <input type="text" id="p4-name-input" placeholder="Player 4">
-                        <div class="color-setting-group">
-                            <label for="p4-color-start-input">P4 Colors Start:</label>
-                            <input type="color" id="p4-color-start-input" value="#8d6e63">
-                            <label for="p4-color-end-input" style="margin-left:10px;">End:</label>
-                            <input type="color" id="p4-color-end-input" value="#5d4037">
-                        </div>
+                    <label for="num-players-input">Number of Players (1-8):</label>
+                    <input type="number" id="num-players-input" value="4" min="1" max="8" style="margin-bottom: 20px;">
+                    
+                    <div id="player-customization-dynamic-area">
+                        <!-- Player name and color inputs will be dynamically generated here -->
                     </div>
                 </div>
             </details>
@@ -446,7 +405,7 @@
                     <li>Tap your player quadrant when it's not your turn to get priority and bypass turn order.</li>
                     <li>The central button pauses or resumes the current player's timer.</li>
                     <li>Pressing Spacebar on a keyboard acts like tapping the current active player's quadrant (passes turn if running, resumes/starts if paused).</li>
-                    <li>If a player's time reaches 00:00, they are automatically eliminated.</li>
+                    <li>If a player's time reaches 00:00 (in count down mode), they are automatically eliminated.</li>
                     <li>Press and hold a player's quadrant for 3 seconds to manually eliminate them. Their time will be kept, but they are out of play.</li>
                     <li>Use the ⚙️ icon to access settings and reset the game.</li>
                 </ul>
@@ -483,16 +442,10 @@
                             }
                         }).render('#donate-button');
                     } else {
-                        // PayPal SDK script might have loaded but didn't define things as expected,
-                        // or it was blocked (PayPal is undefined).
-                        // In this case, the static fallback HTML (already in the #donate-button div) remains and should work.
                         console.warn('PayPal SDK not fully available. Static fallback donation link will be used.');
                     }
                 } catch (error) {
                     console.error('Failed to render PayPal button:', error);
-                    // If an error occurred, the static fallback HTML should ideally still be there.
-                    // If it was cleared and then an error happened, that's an edge case.
-                    // The primary safety is the initial static fallback.
                 }
                 </script>
             </div>
@@ -500,27 +453,29 @@
 
         </div>
     </div>
+    <div id="pause-button">▶️</div> 
+
 
     <script>
         const DEFAULT_INITIAL_BASE_MINUTES = 20;
         const DEFAULT_INITIAL_ADDITION_SECONDS = 0;
         const LOCAL_STORAGE_SETTINGS_KEY = 'cEDHClockSettingsEnhanced_v2_VJ';
-        const MAX_PLAYERS = 4;
+        const MAX_SUPPORTED_PLAYERS = 8; 
         const LONG_PRESS_DURATION = 3000;
         const LONG_TURN_THRESHOLD_SECONDS = 60; 
         const LOW_TIME_PERCENTAGE_THRESHOLD = 0.25;
 
-        // Updated to match default HTML color picker values
-        const DEFAULT_PLAYER_CONFIGS = [
-            { name: "Player 1", colorStart: '#9128d2', colorEnd: '#4a148c', cssVarStart: '--p1-color-start', cssVarEnd: '--p1-color-end' },
+        const BASE_DEFAULT_PLAYER_CONFIGS = [
+            { name: "Player 1", colorStart: '#D32F2F', colorEnd: '#B71C1C', cssVarStart: '--p1-color-start', cssVarEnd: '--p1-color-end' },
             { name: "Player 2", colorStart: '#1976D2', colorEnd: '#0D47A1', cssVarStart: '--p2-color-start', cssVarEnd: '--p2-color-end' },
             { name: "Player 3", colorStart: '#388E3C', colorEnd: '#1B5E20', cssVarStart: '--p3-color-start', cssVarEnd: '--p3-color-end' },
-            { name: "Player 4", colorStart: '#8d6e63', colorEnd: '#5d4037', cssVarStart: '--p4-color-start', cssVarEnd: '--p4-color-end' }
+            { name: "Player 4", colorStart: '#FFA000', colorEnd: '#FF6F00', cssVarStart: '--p4-color-start', cssVarEnd: '--p4-color-end' }
         ];
+        
+        let numPlayers = 4; 
+        let playerConfigs = []; 
 
         let playerTimes = [];
-        let playerNames = DEFAULT_PLAYER_CONFIGS.map(p => p.name);
-        let playerOriginalBg = Array(MAX_PLAYERS).fill('');
         let activePlayerIndex = -1; 
         let currentTurnPlayerIndex = 0; 
         let timerInterval = null;
@@ -530,15 +485,25 @@
         let fullscreenAttemptedInLandscape = false;
         let gameHasStartedOnce = false; 
         
-        let longPressTimers = [null, null, null, null];
-        let longPressActionTakenFlags = [false, false, false, false];
+        let longPressTimers = [];
+        let longPressActionTakenFlags = [];
 
         let isLongTurnWarningEnabled = false;
         let isLowTimeWarningEnabled = false;
-        let playerTurnStartTimestamps = [null, null, null, null]; 
+        let playerTurnStartTimestamps = []; 
 
         let isFullRotationIncrementEnabled = false; 
-        let mainTurnHolderIndex = 0;             
+        let mainTurnHolderIndex = 0;   
+        let isCountUpMode = false;          
+
+        let playerElements = []; 
+        let timeDisplayElements = [];
+        let playerNameSpans = [];
+        let dynPlayerNameInputs = [];
+        let dynColorStartInputs = [];
+        let dynColorEndInputs = [];
+        let visualToLogicalMap = []; 
+
 
         let audioContext;
         function initAudioContext() {
@@ -593,57 +558,64 @@
                 });
             } catch (e) { console.error("Error playing startup melody:", e); }
         }
-
-        const timeDisplayElements = [
-            document.getElementById('time1'), document.getElementById('time2'),
-            document.getElementById('time3'), document.getElementById('time4')
-        ];
         
+        const clockContainer = document.getElementById('clock-container');
         const pauseButton = document.getElementById('pause-button');
         const settingsToggleButton = document.getElementById('settings-toggle');
         const settingsModal = document.getElementById('settings-modal');
         const applySettingsButton = document.getElementById('apply-settings');
         const closeSettingsButton = document.getElementById('close-settings');
         
+        const numPlayersInput = document.getElementById('num-players-input');
         const initialBaseTimeInput = document.getElementById('initial-base-time');
         const timeAdditionSecondsInput = document.getElementById('time-addition-seconds');
         const fullRotationIncrementToggle = document.getElementById('full-rotation-increment-toggle');
+        const countUpToggle = document.getElementById('count-up-toggle');
         
-        const playerNameInputs = [
-            document.getElementById('p1-name-input'), document.getElementById('p2-name-input'),
-            document.getElementById('p3-name-input'), document.getElementById('p4-name-input')
-        ];
-        const colorStartInputs = [
-            document.getElementById('p1-color-start-input'), document.getElementById('p2-color-start-input'),
-            document.getElementById('p3-color-start-input'), document.getElementById('p4-color-start-input')
-        ];
-        const colorEndInputs = [
-            document.getElementById('p1-color-end-input'), document.getElementById('p2-color-end-input'),
-            document.getElementById('p3-color-end-input'), document.getElementById('p4-color-end-input')
-        ];
+        const playerCustomizationDynamicArea = document.getElementById('player-customization-dynamic-area'); // Changed ID
+
         const longTurnWarningToggle = document.getElementById('long-turn-warning-toggle');
         const lowTimeWarningToggle = document.getElementById('low-time-warning-toggle');
 
         const rootStyle = document.documentElement.style;
 
-        function getQuadrantDOM(playerIndex) {
-            // The quadrants are P1, P2, P4(idx3), P3(idx2) visually
-            // data-player-index should be logical 0, 1, 2, 3
-            // HTML is player1 (idx 0), player2 (idx 1), player3 (idx 3 visual, but links to time4), player4 (idx 2 visual, but links to time3)
-            // The `data-player-index` attribute is already correctly set up to be 0, 1, 2, 3 for the logical players.
-            // Player 1: data-player-index="0"
-            // Player 2: data-player-index="1"
-            // Player 3: id="player4", data-player-index="2" (displays time3)
-            // Player 4: id="player3", data-player-index="3" (displays time4)
-            // This means `getQuadrantDOM(2)` will get the element for player 3, `getQuadrantDOM(3)` for player 4.
-            return document.querySelector(`.quadrant[data-player-index="${playerIndex}"]`);
+        function generateRandomHexColor() {
+            return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         }
         
-        function isPlayerEffectivelyOutOfGame(playerIndex) {
-            if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return true;
-            const q = getQuadrantDOM(playerIndex);
-            return playerTimes[playerIndex] <= 0 || (q && q.classList.contains('timed-out-player'));
+        function getQuadrantDOMByLogicalIndex(logicalPlayerIndex) {
+            return playerElements.find(el => el && parseInt(el.dataset.playerIndex) === logicalPlayerIndex);
         }
+        
+        function isPlayerEffectivelyOutOfGame(logicalPlayerIndex) {
+            if (logicalPlayerIndex < 0 || logicalPlayerIndex >= numPlayers) return true;
+            const q = getQuadrantDOMByLogicalIndex(logicalPlayerIndex);
+            const timedOutByClock = !isCountUpMode && playerTimes[logicalPlayerIndex] <= 0;
+            return timedOutByClock || (q && q.classList.contains('timed-out-player'));
+        }
+        
+        function getNextLogicalPlayerIndex(currentLogicalPlayerIndex) {
+            return (currentLogicalPlayerIndex + 1) % numPlayers;
+        }
+
+        function findNextValidPlayerInSequence(startingLogicalPlayerIndex) {
+            if (numPlayers <= 0) return -1;
+
+            let nextLogicalPlayer = getNextLogicalPlayerIndex(startingLogicalPlayerIndex);
+            let attempts = 0;
+            while (isPlayerEffectivelyOutOfGame(nextLogicalPlayer) && attempts < numPlayers) {
+                if (nextLogicalPlayer === startingLogicalPlayerIndex && attempts > 0) {
+                    return -1; 
+                }
+                nextLogicalPlayer = getNextLogicalPlayerIndex(nextLogicalPlayer);
+                attempts++;
+            }
+            if (attempts >= numPlayers && isPlayerEffectivelyOutOfGame(nextLogicalPlayer)) { 
+                 return -1;
+            }
+            return nextLogicalPlayer;
+        }
+
 
         function goFullScreen() {
             const elem = document.documentElement;
@@ -677,16 +649,18 @@
         }
 
         function formatTime(totalSeconds) {
-            if (totalSeconds < 0) totalSeconds = 0;
-            const m = Math.floor(totalSeconds / 60);
-            const s = totalSeconds % 60;
-            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            if (totalSeconds < 0 && !isCountUpMode) totalSeconds = 0; 
+            const absTotalSeconds = Math.abs(totalSeconds);
+            const m = Math.floor(absTotalSeconds / 60);
+            const s = absTotalSeconds % 60;
+            const sign = totalSeconds < 0 ? "-" : ""; 
+            return `${sign}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
         function applyVisualWarnings() {
             const now = performance.now();
-            for (let i = 0; i < MAX_PLAYERS; i++) {
-                const qElement = getQuadrantDOM(i);
+            for (let logicalIdx = 0; logicalIdx < numPlayers; logicalIdx++) {
+                const qElement = getQuadrantDOMByLogicalIndex(logicalIdx);
                 if (!qElement) continue;
 
                 if (qElement.classList.contains('timed-out-player')) {
@@ -697,45 +671,35 @@
                 let needsYellow = false;
                 let needsRed = false;
 
-                if (isLowTimeWarningEnabled) {
+                if (isLowTimeWarningEnabled && !isCountUpMode) { 
                     const lowTimeThresholdValue = (initialBaseTimeMinutes * 60) * LOW_TIME_PERCENTAGE_THRESHOLD;
-                    if (playerTimes[i] > 0 && playerTimes[i] <= lowTimeThresholdValue) {
+                    if (playerTimes[logicalIdx] > 0 && playerTimes[logicalIdx] <= lowTimeThresholdValue) {
                         needsRed = true;
                     }
                 }
 
-                if (isLongTurnWarningEnabled && i === activePlayerIndex && !isPaused && playerTurnStartTimestamps[i] !== null) {
-                    const currentTurnDurationSeconds = (now - playerTurnStartTimestamps[i]) / 1000;
+                if (isLongTurnWarningEnabled && logicalIdx === activePlayerIndex && !isPaused && playerTurnStartTimestamps[logicalIdx] !== null) {
+                    const currentTurnDurationSeconds = (now - playerTurnStartTimestamps[logicalIdx]) / 1000;
                     if (currentTurnDurationSeconds > LONG_TURN_THRESHOLD_SECONDS) {
                         needsYellow = true;
                     }
                 }
                 
-                if (needsRed) {
-                    qElement.classList.add('red-warning');
-                    qElement.classList.remove('yellow-warning'); 
-                } else if (needsYellow) { 
-                    qElement.classList.add('yellow-warning');
-                    qElement.classList.remove('red-warning'); 
-                } else { 
-                    qElement.classList.remove('red-warning');
-                    qElement.classList.remove('yellow-warning');
-                }
+                qElement.classList.toggle('red-warning', needsRed);
+                qElement.classList.toggle('yellow-warning', needsYellow && !needsRed);
             }
         }
 
         function updateDisplay() {
-            for (let i = 0; i < MAX_PLAYERS; i++) {
-                // timeDisplayElements are ordered 0,1,2,3 for player 1,2,3,4's times
-                // playerTimes array is also 0,1,2,3 for player 1,2,3,4's times
-                timeDisplayElements[i].textContent = formatTime(playerTimes[i]);
-                const qElement = getQuadrantDOM(i); // This gets the quadrant visually associated with player i
+            for (let logicalIdx = 0; logicalIdx < numPlayers; logicalIdx++) {
+                const visualElementIndex = visualToLogicalMap.indexOf(logicalIdx);
+                if (visualElementIndex !== -1 && timeDisplayElements[visualElementIndex]) {
+                    timeDisplayElements[visualElementIndex].textContent = formatTime(playerTimes[logicalIdx]);
+                }
+
+                const qElement = getQuadrantDOMByLogicalIndex(logicalIdx); 
                 if (qElement) {
-                    if (i === activePlayerIndex && !isPaused && !isPlayerEffectivelyOutOfGame(i)) {
-                        qElement.classList.add('active');
-                    } else {
-                        qElement.classList.remove('active');
-                    }
+                    qElement.classList.toggle('active', logicalIdx === activePlayerIndex && !isPaused && !isPlayerEffectivelyOutOfGame(logicalIdx));
                 }
             }
             applyVisualWarnings(); 
@@ -747,60 +711,88 @@
             timerInterval = null;
         }
 
-        function manuallyDisablePlayer(playerIndex) {
-            const quadrant = getQuadrantDOM(playerIndex);
+        function manuallyDisablePlayer(logicalPlayerIndex) {
+            const quadrant = getQuadrantDOMByLogicalIndex(logicalPlayerIndex);
             if (!quadrant || quadrant.classList.contains('timed-out-player')) {
                 return;
             }
-            console.log(`Manually disabling ${playerNames[playerIndex]}`);
-            quadrant.classList.add('timed-out-player');
-            quadrant.classList.remove('yellow-warning', 'red-warning', 'active'); 
-            quadrant.style.backgroundImage = ''; 
-            playBeep(220, 0.15, 'sawtooth', 0.25);
+            console.log(`Manually disabling ${playerConfigs[logicalPlayerIndex].name}`);
+            playBeep(220, 0.15, 'sawtooth', 0.25); // Sound for manual disable
 
-            if (activePlayerIndex === playerIndex) {
+            quadrant.classList.add('timeout-flash-animation'); // Start flash
+
+            setTimeout(() => { // After flash duration
+                if (quadrant) {
+                    quadrant.classList.remove('timeout-flash-animation');
+                    quadrant.classList.add('timed-out-player');
+                    quadrant.classList.remove('yellow-warning', 'red-warning', 'active'); 
+                    quadrant.style.backgroundImage = ''; // Clear custom gradient for striped background
+                }
+            }, 800);
+
+
+            if (activePlayerIndex === logicalPlayerIndex) {
+                const nextPlayer = findNextValidPlayerInSequence(activePlayerIndex);
                 stopAllTimers();
-                isPaused = true;
-                activePlayerIndex = -1;
+                if (nextPlayer !== -1) {
+                    startTimerForPlayer(nextPlayer);
+                } else {
+                    isPaused = true;
+                    activePlayerIndex = -1;
+                }
             }
-            updateDisplay();
+            updateDisplay(); // Update general display
         }
 
-        function handleTimeout(playerIndex) {
-            playerTimes[playerIndex] = 0;
-            const timedOutQuadrant = getQuadrantDOM(playerIndex);
+        function handleTimeout(logicalPlayerIndex) { 
+            if (isCountUpMode) return;
+
+            playerTimes[logicalPlayerIndex] = 0;
+            const timedOutQuadrant = getQuadrantDOMByLogicalIndex(logicalPlayerIndex);
 
             if (timedOutQuadrant && !timedOutQuadrant.classList.contains('timed-out-player')) {
-                 timedOutQuadrant.classList.add('timed-out-player');
-                 timedOutQuadrant.classList.remove('yellow-warning', 'red-warning', 'active'); 
-                 timedOutQuadrant.style.backgroundImage = ''; 
-                 timedOutQuadrant.classList.add('timeout-flash-animation');
-                 setTimeout(() => timedOutQuadrant.classList.remove('timeout-flash-animation'), 800);
                  playBeep(880, 0.2, 'square', 0.4); 
                  playBeep(880, 0.2, 'square', 0.4); 
+                 
+                 timedOutQuadrant.classList.add('timeout-flash-animation'); // Start flash
+
+                 setTimeout(() => { // After flash duration
+                    if (timedOutQuadrant) {
+                        timedOutQuadrant.classList.remove('timeout-flash-animation');
+                        timedOutQuadrant.classList.add('timed-out-player');
+                        timedOutQuadrant.classList.remove('yellow-warning', 'red-warning', 'active'); 
+                        timedOutQuadrant.style.backgroundImage = ''; // Clear custom gradient
+                        // updateDisplay(); // Optional: as above
+                    }
+                 }, 800);
             }
             
-            if (activePlayerIndex === playerIndex) {
+            if (activePlayerIndex === logicalPlayerIndex) {
+                 const nextPlayer = findNextValidPlayerInSequence(activePlayerIndex);
                 stopAllTimers();
-                isPaused = true;
-                activePlayerIndex = -1;
+                if (nextPlayer !== -1) {
+                    startTimerForPlayer(nextPlayer);
+                } else {
+                    isPaused = true;
+                    activePlayerIndex = -1;
+                }
             }
-            updateDisplay(); 
+            updateDisplay(); // Update general display
         }
 
-        function startTimerForPlayer(playerIndex) {
-            if (isPlayerEffectivelyOutOfGame(playerIndex)) { 
+        function startTimerForPlayer(logicalPlayerIndex) {
+            if (isPlayerEffectivelyOutOfGame(logicalPlayerIndex)) { 
                 updateDisplay();
                 return;
             }
 
             stopAllTimers(); 
-            activePlayerIndex = playerIndex;
-            currentTurnPlayerIndex = playerIndex; 
+            activePlayerIndex = logicalPlayerIndex;
+            currentTurnPlayerIndex = logicalPlayerIndex; 
             isPaused = false; 
             
-            playerTurnStartTimestamps.fill(null); 
-            playerTurnStartTimestamps[playerIndex] = performance.now();
+            playerTurnStartTimestamps = playerTurnStartTimestamps.map(() => null); 
+            playerTurnStartTimestamps[logicalPlayerIndex] = performance.now();
 
             if (!gameHasStartedOnce) {
                 initAudioContext(); 
@@ -809,18 +801,27 @@
             }
 
             timerInterval = setInterval(() => {
-                if (!isPaused && playerTimes[activePlayerIndex] > 0 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
-                    playerTimes[activePlayerIndex]--;
-                    if (playerTimes[activePlayerIndex] <= 0) {
-                        handleTimeout(activePlayerIndex);
+                if (!isPaused && playerTimes[activePlayerIndex] !== undefined && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
+                    if (isCountUpMode) {
+                        playerTimes[activePlayerIndex]++;
+                    } else {
+                        playerTimes[activePlayerIndex]--;
+                        if (playerTimes[activePlayerIndex] <= 0) {
+                            handleTimeout(activePlayerIndex); 
+                        }
                     }
                     updateDisplay(); 
-                } else if (playerTimes[activePlayerIndex] <= 0 && !isPaused) { 
+                } else if (!isCountUpMode && playerTimes[activePlayerIndex] <= 0 && !isPaused) { 
                     handleTimeout(activePlayerIndex);
                 } else if (isPlayerEffectivelyOutOfGame(activePlayerIndex) && !isPaused) {
+                    const nextPlayer = findNextValidPlayerInSequence(activePlayerIndex);
                     stopAllTimers();
-                    isPaused = true;
-                    activePlayerIndex = -1;
+                    if (nextPlayer !== -1) {
+                        startTimerForPlayer(nextPlayer);
+                    } else {
+                        isPaused = true;
+                        activePlayerIndex = -1;
+                    }
                     updateDisplay();
                 } else {
                     if(isPaused) updateDisplay(); 
@@ -832,98 +833,84 @@
         function passTurnFromActivePlayer() {
             if (activePlayerIndex === -1 || isPaused) return;
             if (isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
-                if (!isPaused) togglePause();
+                if (!isPaused) togglePause(); 
                 return;
             }
             
-            const playerEndingTurn = activePlayerIndex; 
+            const playerEndingTurnLogical = activePlayerIndex; 
 
-            if (playerTurnStartTimestamps[playerEndingTurn] !== null) {
-                playerTurnStartTimestamps[playerEndingTurn] = null;
+            if (playerTurnStartTimestamps[playerEndingTurnLogical] !== null) {
+                playerTurnStartTimestamps[playerEndingTurnLogical] = null;
             }
 
-            if (isFullRotationIncrementEnabled) {
-                if (playerEndingTurn === mainTurnHolderIndex && 
-                    !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
-                    timeAdditionSecondsPerTurn > 0) {
-                    
-                    playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
+            if (!isCountUpMode && timeAdditionSecondsPerTurn > 0) { 
+                if (isFullRotationIncrementEnabled) {
+                    if (playerEndingTurnLogical === mainTurnHolderIndex && 
+                        !isPlayerEffectivelyOutOfGame(playerEndingTurnLogical)) {
+                        
+                        playerTimes[playerEndingTurnLogical] += timeAdditionSecondsPerTurn;
 
-                    let nextMainTurnHolder = (mainTurnHolderIndex + 1) % MAX_PLAYERS;
-                    let advanceAttempts = 0;
-                    while (isPlayerEffectivelyOutOfGame(nextMainTurnHolder) && advanceAttempts < MAX_PLAYERS) {
-                        nextMainTurnHolder = (nextMainTurnHolder + 1) % MAX_PLAYERS;
-                        advanceAttempts++;
+                        let nextMainTurnHolder = findNextValidPlayerInSequence(mainTurnHolderIndex);
+                        if (nextMainTurnHolder !== -1) {
+                            mainTurnHolderIndex = nextMainTurnHolder;
+                        }
                     }
-                    if (advanceAttempts < MAX_PLAYERS) {
-                        mainTurnHolderIndex = nextMainTurnHolder;
+                } else {
+                    if (playerEndingTurnLogical !== -1 && 
+                        !isPlayerEffectivelyOutOfGame(playerEndingTurnLogical)) {
+                        playerTimes[playerEndingTurnLogical] += timeAdditionSecondsPerTurn;
                     }
-                }
-            } else {
-                if (playerEndingTurn !== -1 && 
-                    !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
-                    timeAdditionSecondsPerTurn > 0) {
-                    playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
                 }
             }
             
             stopAllTimers(); 
+            const nextLogicalPlayer = findNextValidPlayerInSequence(playerEndingTurnLogical);
 
-            let nextPlayer = (playerEndingTurn + 1) % MAX_PLAYERS; 
-            let attempts = 0;
-            while (isPlayerEffectivelyOutOfGame(nextPlayer) && attempts < MAX_PLAYERS) {
-                nextPlayer = (nextPlayer + 1) % MAX_PLAYERS;
-                attempts++;
-            }
-
-            if (attempts < MAX_PLAYERS && !isPlayerEffectivelyOutOfGame(nextPlayer)) {
-                startTimerForPlayer(nextPlayer); 
+            if (nextLogicalPlayer !== -1) {
+                startTimerForPlayer(nextLogicalPlayer); 
             } else {
                 isPaused = true;
                 activePlayerIndex = -1; 
-                // alert("No other active players remaining. Game paused."); // Consider if this alert is too intrusive
             }
             updateDisplay(); 
         }
 
-        function handlePressStart(event, playerIndex) {
-            const quadrant = getQuadrantDOM(playerIndex);
-            if (!quadrant || isPlayerEffectivelyOutOfGame(playerIndex)) return;
-            if (event.type === 'mousedown') event.preventDefault(); // Prevent text selection/drag
-            clearTimeout(longPressTimers[playerIndex]);
-            longPressActionTakenFlags[playerIndex] = false; 
+        function handlePressStart(event, logicalPlayerIndex) {
+            const quadrant = getQuadrantDOMByLogicalIndex(logicalPlayerIndex);
+            if (!quadrant || isPlayerEffectivelyOutOfGame(logicalPlayerIndex)) return;
+            if (event.type === 'mousedown') event.preventDefault();
+            clearTimeout(longPressTimers[logicalPlayerIndex]);
+            longPressActionTakenFlags[logicalPlayerIndex] = false; 
             quadrant.classList.add('long-pressing');
-            longPressTimers[playerIndex] = setTimeout(() => {
-                if (quadrant.classList.contains('long-pressing')) { // Check if still pressing
-                    manuallyDisablePlayer(playerIndex);
-                    longPressActionTakenFlags[playerIndex] = true; // Flag that action was taken
+            longPressTimers[logicalPlayerIndex] = setTimeout(() => {
+                if (quadrant.classList.contains('long-pressing')) {
+                    manuallyDisablePlayer(logicalPlayerIndex);
+                    longPressActionTakenFlags[logicalPlayerIndex] = true; 
                     quadrant.classList.remove('long-pressing'); 
                 }
-                longPressTimers[playerIndex] = null; 
+                longPressTimers[logicalPlayerIndex] = null; 
             }, LONG_PRESS_DURATION);
         }
 
-        function handlePressEnd(event, playerIndex) {
-            const quadrant = getQuadrantDOM(playerIndex);
-            if (longPressTimers[playerIndex]) {
-                clearTimeout(longPressTimers[playerIndex]);
-                longPressTimers[playerIndex] = null; 
+        function handlePressEnd(event, logicalPlayerIndex) {
+            const quadrant = getQuadrantDOMByLogicalIndex(logicalPlayerIndex); 
+            if (longPressTimers[logicalPlayerIndex]) {
+                clearTimeout(longPressTimers[logicalPlayerIndex]);
+                longPressTimers[logicalPlayerIndex] = null; 
             }
             if (quadrant) quadrant.classList.remove('long-pressing');
-            // Do not reset longPressActionTakenFlags[playerIndex] here, it's reset in click handler
         }
 
         function handleQuadrantClick(event) {
             const clickedQuadrant = event.currentTarget;
-            const clickedPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
+            const clickedLogicalPlayerIndex = parseInt(clickedQuadrant.dataset.playerIndex);
 
-            if (longPressActionTakenFlags[clickedPlayerIndex]) {
-                longPressActionTakenFlags[clickedPlayerIndex] = false; // Reset flag for next interaction
-                return; // Don't process click if long press action occurred
+            if (longPressActionTakenFlags[clickedLogicalPlayerIndex]) {
+                longPressActionTakenFlags[clickedLogicalPlayerIndex] = false; 
+                return; 
             }
 
-            if (isPlayerEffectivelyOutOfGame(clickedPlayerIndex)) {
-                // alert(`${playerNames[clickedPlayerIndex]} is out of the game.`); // Can be noisy
+            if (isPlayerEffectivelyOutOfGame(clickedLogicalPlayerIndex)) {
                 playBeep(150, 0.1, 'triangle', 0.2);
                 return;
             }
@@ -931,48 +918,36 @@
             attemptFullscreenOnMobileLandscape();
 
             if (isPaused) { 
-                startTimerForPlayer(clickedPlayerIndex);
+                startTimerForPlayer(clickedLogicalPlayerIndex);
                 return; 
             }
 
-            if (activePlayerIndex === clickedPlayerIndex) {
+            if (activePlayerIndex === clickedLogicalPlayerIndex) {
                  passTurnFromActivePlayer(); 
             } else { 
-                // Passing priority to a different player
-                const playerEndingTurn = activePlayerIndex; // Could be -1 if no one was active but game not paused (should not happen)
+                const playerEndingTurnLogical = activePlayerIndex; 
 
-                // Apply time addition if applicable, even on priority pass
-                if (isFullRotationIncrementEnabled) {
-                    // Only add time if the player ending their active phase was the main turn holder
-                    if (playerEndingTurn === mainTurnHolderIndex && 
-                        playerEndingTurn !== -1 && // Ensure there was an active player
-                        !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
-                        timeAdditionSecondsPerTurn > 0) {
-                        
-                        playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
-
-                        // Advance main turn holder ONLY if this pass also means they finished their "official" turn
-                        // This logic implies a priority pass to another player *is* ending their official turn.
-                        // If it's just a priority pass within their turn, mainTurnHolderIndex shouldn't change yet.
-                        // For simplicity in current model: assume any pass from main turn holder to another player advances it.
-                        let nextMainTurnHolder = (mainTurnHolderIndex + 1) % MAX_PLAYERS;
-                        let advanceAttempts = 0;
-                        while (isPlayerEffectivelyOutOfGame(nextMainTurnHolder) && advanceAttempts < MAX_PLAYERS) {
-                            nextMainTurnHolder = (nextMainTurnHolder + 1) % MAX_PLAYERS;
-                            advanceAttempts++;
+                if (!isCountUpMode && timeAdditionSecondsPerTurn > 0) { 
+                    if (isFullRotationIncrementEnabled) {
+                        if (playerEndingTurnLogical === mainTurnHolderIndex && 
+                            playerEndingTurnLogical !== -1 && 
+                            !isPlayerEffectivelyOutOfGame(playerEndingTurnLogical)) {
+                            
+                            playerTimes[playerEndingTurnLogical] += timeAdditionSecondsPerTurn;
+                            let nextMainTurnHolder = findNextValidPlayerInSequence(mainTurnHolderIndex);
+                            if (nextMainTurnHolder !== -1) {
+                                mainTurnHolderIndex = nextMainTurnHolder;
+                            }
                         }
-                        if (advanceAttempts < MAX_PLAYERS) {
-                            mainTurnHolderIndex = nextMainTurnHolder;
+                    } else { 
+                        if (playerEndingTurnLogical !== -1 && 
+                            !isPlayerEffectivelyOutOfGame(playerEndingTurnLogical)) {
+                            playerTimes[playerEndingTurnLogical] += timeAdditionSecondsPerTurn;
                         }
-                    }
-                } else { // Standard time addition on any pass
-                    if (playerEndingTurn !== -1 && 
-                        !isPlayerEffectivelyOutOfGame(playerEndingTurn) && 
-                        timeAdditionSecondsPerTurn > 0) {
-                        playerTimes[playerEndingTurn] += timeAdditionSecondsPerTurn;
                     }
                 }
-                startTimerForPlayer(clickedPlayerIndex);
+                stopAllTimers(); 
+                startTimerForPlayer(clickedLogicalPlayerIndex); 
             }
         }
 
@@ -980,79 +955,71 @@
             initAudioContext();
             attemptFullscreenOnMobileLandscape();
             if (isPaused) { 
-                let playerToStartCandidate;
-                // Try to resume with the last active player if they are still in game
+                let playerToStartCandidate = -1;
                 if (activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
-                    playerToStartCandidate = activePlayerIndex;
-                } else { // Otherwise, use currentTurnPlayerIndex (who was supposed to be next or was last active)
-                    playerToStartCandidate = currentTurnPlayerIndex; 
-                    // If currentTurnPlayerIndex is also out, find the first available player from 0
-                    if (isPlayerEffectivelyOutOfGame(playerToStartCandidate)) playerToStartCandidate = 0;
+                    playerToStartCandidate = activePlayerIndex; 
+                } else {
+                    let potentialStarters = [currentTurnPlayerIndex, mainTurnHolderIndex, 0];
+                    for (let starter of potentialStarters) {
+                        if (starter >=0 && starter < numPlayers && !isPlayerEffectivelyOutOfGame(starter)) {
+                            playerToStartCandidate = starter;
+                            break;
+                        }
+                    }
+                    if (playerToStartCandidate === -1) {
+                         for (let i = 0; i < numPlayers; i++) { 
+                            if (!isPlayerEffectivelyOutOfGame(i)) {
+                                playerToStartCandidate = i;
+                                break;
+                            }
+                        }
+                    }
                 }
                 
-                let attempts = 0;
-                while (isPlayerEffectivelyOutOfGame(playerToStartCandidate) && attempts < MAX_PLAYERS) {
-                    playerToStartCandidate = (playerToStartCandidate + 1) % MAX_PLAYERS;
-                    attempts++;
-                }
-
-                if (!isPlayerEffectivelyOutOfGame(playerToStartCandidate)) {
+                if (playerToStartCandidate !== -1) {
                     startTimerForPlayer(playerToStartCandidate); 
                 } else { 
-                    // alert("All players are out of the game. Reset or adjust settings.");
-                    isPaused = true; // Remain paused
+                    isPaused = true; 
                     activePlayerIndex = -1;
                     updateDisplay(); 
-                    playBeep(180, 0.15, 'sawtooth', 0.25);
+                    playBeep(180, 0.15, 'sawtooth', 0.25); 
                 }
-            } else { // Game is running, so pause it
+            } else { 
                 isPaused = true;
                 stopAllTimers(); 
-                // activePlayerIndex remains, so we know who was active when paused
                 updateDisplay(); 
                 playBeep(300, 0.08, 'triangle', 0.2);
             }
         }
         
         pauseButton.addEventListener('click', togglePause);
-        document.querySelectorAll('.quadrant').forEach(quad => {
-            const playerIndex = parseInt(quad.dataset.playerIndex);
-            quad.addEventListener('click', handleQuadrantClick); 
-            quad.addEventListener('mousedown', (e) => handlePressStart(e, playerIndex));
-            quad.addEventListener('touchstart', (e) => handlePressStart(e, playerIndex), { passive: false }); // passive:false for preventDefault in handler
-            quad.addEventListener('mouseup', (e) => handlePressEnd(e, playerIndex));
-            quad.addEventListener('mouseleave', (e) => handlePressEnd(e, playerIndex)); // If mouse leaves while pressed
-            quad.addEventListener('touchend', (e) => handlePressEnd(e, playerIndex));
-            quad.addEventListener('touchcancel', (e) => handlePressEnd(e, playerIndex));
-            quad.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on long press
-        });
 
         document.addEventListener('keydown', (event) => {
             const activeElement = document.activeElement;
             const isInputActive = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
             const isModalOpen = settingsModal.style.display === 'flex';
 
-            if (isModalOpen || isInputActive) return; // Don't interfere with modal/input typing
+            if (isModalOpen || isInputActive) return; 
 
             if (event.key === ' ' || event.code === 'Space') {
                 event.preventDefault();
                 initAudioContext(); 
                 attemptFullscreenOnMobileLandscape(); 
                 if (!isPaused && activePlayerIndex !== -1 && !isPlayerEffectivelyOutOfGame(activePlayerIndex)) {
-                    // If game is running and a player is active, spacebar acts like clicking active player's quadrant (pass turn)
                     passTurnFromActivePlayer(); 
                 } else if (isPaused) {
-                    // If game is paused, spacebar acts like clicking the pause/play button
                     togglePause(); 
-                } else {
-                    // Game not paused, but no active player (e.g., all timed out but clock not technically paused by button)
-                    // This state should ideally be handled by togglePause attempting to find a player or staying paused.
-                    playBeep(220, 0.1, 'sine', 0.2); // Generic interaction sound
+                } else { 
+                    playBeep(220, 0.1, 'sine', 0.2); 
                 }
             }
         });
 
         function applyAndResetGame() {
+            let parsedNumPlayers = parseInt(numPlayersInput.value);
+            numPlayers = (parsedNumPlayers >= 1 && parsedNumPlayers <= MAX_SUPPORTED_PLAYERS) ? parsedNumPlayers : 4;
+            numPlayersInput.value = numPlayers; 
+
             let baseTimeFromInput = parseInt(initialBaseTimeInput.value);
             initialBaseTimeMinutes = (baseTimeFromInput && baseTimeFromInput >= 1) ? baseTimeFromInput : DEFAULT_INITIAL_BASE_MINUTES;
             if (initialBaseTimeMinutes < 1) initialBaseTimeMinutes = 1;
@@ -1060,84 +1027,332 @@
             let additionFromInput = parseInt(timeAdditionSecondsInput.value);
             timeAdditionSecondsPerTurn = (additionFromInput !== null && !isNaN(additionFromInput) && additionFromInput >= 0) ? additionFromInput : DEFAULT_INITIAL_ADDITION_SECONDS;
             if (timeAdditionSecondsPerTurn < 0) timeAdditionSecondsPerTurn = 0;
+            
+            isCountUpMode = countUpToggle.checked;
+            if (isCountUpMode) { 
+                initialBaseTimeInput.disabled = true;
+                lowTimeWarningToggle.checked = false;
+                lowTimeWarningToggle.disabled = true;
+            } else {
+                initialBaseTimeInput.disabled = false;
+                lowTimeWarningToggle.disabled = false;
+            }
 
             isLongTurnWarningEnabled = longTurnWarningToggle.checked;
-            isLowTimeWarningEnabled = lowTimeWarningToggle.checked;
+            isLowTimeWarningEnabled = isCountUpMode ? false : lowTimeWarningToggle.checked; 
             isFullRotationIncrementEnabled = fullRotationIncrementToggle.checked; 
 
             let settingsToSave = {
+                numPlayers: numPlayers,
                 initialBaseTime: initialBaseTimeMinutes,
                 timeAdditionSeconds: timeAdditionSecondsPerTurn,
+                isCountUpMode: isCountUpMode,
                 longTurnWarningEnabled: isLongTurnWarningEnabled,
                 lowTimeWarningEnabled: isLowTimeWarningEnabled,
-                fullRotationIncrementEnabled: isFullRotationIncrementEnabled 
+                fullRotationIncrementEnabled: isFullRotationIncrementEnabled,
+                playerConfigs: []
             };
             
-            for (let i = 0; i < MAX_PLAYERS; i++) {
-                const config = DEFAULT_PLAYER_CONFIGS[i]; 
-                playerNames[i] = playerNameInputs[i].value.trim() || config.name;
-                playerNameInputs[i].value = playerNames[i]; // Update input field with trimmed or default name
-                settingsToSave[`p${i+1}Name`] = playerNames[i];
+            playerConfigs = []; 
+            for (let i = 0; i < numPlayers; i++) {
+                const name = dynPlayerNameInputs[i] ? (dynPlayerNameInputs[i].value.trim() || `Player ${i + 1}`) : `Player ${i + 1}`;
+                const colorStart = dynColorStartInputs[i] ? dynColorStartInputs[i].value : generateRandomHexColor();
+                const colorEnd = dynColorEndInputs[i] ? dynColorEndInputs[i].value : generateRandomHexColor();
                 
-                const startColor = colorStartInputs[i].value;
-                const endColor = colorEndInputs[i].value;  
-
-                rootStyle.setProperty(config.cssVarStart, startColor);
-                rootStyle.setProperty(config.cssVarEnd, endColor);
-                // Store the resolved gradient string for resetGame
-                playerOriginalBg[i] = `linear-gradient(135deg, ${startColor}, ${endColor})`;
-                
-                settingsToSave[`p${i+1}ColorStart`] = startColor;
-                settingsToSave[`p${i+1}ColorEnd`] = endColor;
-
-                // Update player name display on quadrant immediately (though resetGame will also do it)
-                const qElement = getQuadrantDOM(i);
-                if (qElement) {
-                    const nameSpan = qElement.querySelector('.player-name');
-                    if (nameSpan) nameSpan.textContent = playerNames[i];
+                let currentConfig = { name, colorStart, colorEnd };
+                if (i < BASE_DEFAULT_PLAYER_CONFIGS.length) {
+                    currentConfig.cssVarStart = BASE_DEFAULT_PLAYER_CONFIGS[i].cssVarStart;
+                    currentConfig.cssVarEnd = BASE_DEFAULT_PLAYER_CONFIGS[i].cssVarEnd;
                 }
+                playerConfigs.push(currentConfig);
+                settingsToSave.playerConfigs.push({ name, colorStart, colorEnd }); 
             }
             
             localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(settingsToSave));
             resetGame(); 
         }
+        
+        function setupPlayerSettingsUI(count) {
+            playerCustomizationDynamicArea.innerHTML = ''; // Use new container ID
+            dynPlayerNameInputs = [];
+            dynColorStartInputs = [];
+            dynColorEndInputs = [];
+
+            for (let i = 0; i < count; i++) {
+                const config = playerConfigs[i] || { 
+                    name: `Player ${i + 1}`,
+                    colorStart: i < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[i].colorStart : generateRandomHexColor(),
+                    colorEnd: i < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[i].colorEnd : generateRandomHexColor(),
+                };
+
+                const div = document.createElement('div');
+                
+                const nameLabel = document.createElement('label');
+                nameLabel.htmlFor = `p${i+1}-name-input-dyn`;
+                nameLabel.textContent = `Player ${i+1} Name:`;
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.id = `p${i+1}-name-input-dyn`;
+                nameInput.placeholder = `Player ${i+1}`;
+                nameInput.value = config.name;
+                dynPlayerNameInputs.push(nameInput);
+
+                const colorGroup = document.createElement('div');
+                colorGroup.className = 'color-setting-group';
+                
+                const colorStartLabel = document.createElement('label');
+                colorStartLabel.htmlFor = `p${i+1}-color-start-input-dyn`;
+                colorStartLabel.textContent = `P${i+1} Colors Start:`;
+                const colorStartInput = document.createElement('input');
+                colorStartInput.type = 'color';
+                colorStartInput.id = `p${i+1}-color-start-input-dyn`;
+                colorStartInput.value = config.colorStart;
+                dynColorStartInputs.push(colorStartInput);
+
+                const colorEndLabel = document.createElement('label');
+                colorEndLabel.htmlFor = `p${i+1}-color-end-input-dyn`;
+                colorEndLabel.style.marginLeft = '10px';
+                colorEndLabel.textContent = `End:`;
+                const colorEndInput = document.createElement('input');
+                colorEndInput.type = 'color';
+                colorEndInput.id = `p${i+1}-color-end-input-dyn`;
+                colorEndInput.value = config.colorEnd;
+                dynColorEndInputs.push(colorEndInput);
+
+                colorGroup.appendChild(colorStartLabel);
+                colorGroup.appendChild(colorStartInput);
+                colorGroup.appendChild(colorEndLabel);
+                colorGroup.appendChild(colorEndInput);
+
+                div.appendChild(nameLabel);
+                div.appendChild(nameInput);
+                div.appendChild(colorGroup);
+                playerCustomizationDynamicArea.appendChild(div); // Use new container ID
+
+                if (i < count - 1) {
+                    const hr = document.createElement('hr');
+                    hr.className = 'player-customization-divider';
+                    playerCustomizationDynamicArea.appendChild(hr); // Use new container ID
+                }
+            }
+        }
+        
+        numPlayersInput.addEventListener('change', () => {
+            let currentNum = parseInt(numPlayersInput.value);
+            if (isNaN(currentNum) || currentNum < 1) currentNum = 1;
+            if (currentNum > MAX_SUPPORTED_PLAYERS) currentNum = MAX_SUPPORTED_PLAYERS;
+            numPlayersInput.value = currentNum; 
+
+            while(playerConfigs.length < currentNum) {
+                const nextIndex = playerConfigs.length;
+                playerConfigs.push({
+                    name: `Player ${nextIndex + 1}`,
+                    colorStart: nextIndex < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[nextIndex].colorStart : generateRandomHexColor(),
+                    colorEnd: nextIndex < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[nextIndex].colorEnd : generateRandomHexColor(),
+                    ...(nextIndex < BASE_DEFAULT_PLAYER_CONFIGS.length && { 
+                        cssVarStart: BASE_DEFAULT_PLAYER_CONFIGS[nextIndex].cssVarStart,
+                        cssVarEnd: BASE_DEFAULT_PLAYER_CONFIGS[nextIndex].cssVarEnd
+                    })
+                });
+            }
+            if (playerConfigs.length > currentNum) {
+                playerConfigs = playerConfigs.slice(0, currentNum);
+            }
+            setupPlayerSettingsUI(currentNum); 
+        });
+
+        function setupQuadrantsAndDOM() {
+            clockContainer.innerHTML = ''; 
+            playerElements = []; 
+            playerNameSpans = [];
+            timeDisplayElements = [];
+            
+            for (let i = 0; i < numPlayers; i++) { 
+                const q = document.createElement('div');
+                q.classList.add('quadrant');
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.classList.add('player-name');
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.classList.add('time-display');
+                
+                q.appendChild(nameSpan);
+                q.appendChild(timeSpan);
+                clockContainer.appendChild(q); 
+
+                playerElements.push(q); 
+                playerNameSpans.push(nameSpan);
+                timeDisplayElements.push(timeSpan);
+
+                q.addEventListener('click', handleQuadrantClick);
+                q.addEventListener('mousedown', (e) => {
+                    const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressStart(e, logicalIdx);
+                });
+                q.addEventListener('touchstart', (e) => {
+                    const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressStart(e, logicalIdx);
+                }, { passive: false });
+                q.addEventListener('mouseup', (e) => {
+                     const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressEnd(e, logicalIdx);
+                });
+                q.addEventListener('mouseleave', (e) => {
+                     const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressEnd(e, logicalIdx);
+                });
+                q.addEventListener('touchend', (e) => {
+                     const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressEnd(e, logicalIdx);
+                });
+                q.addEventListener('touchcancel', (e) => {
+                     const logicalIdx = parseInt(e.currentTarget.dataset.playerIndex);
+                    handlePressEnd(e, logicalIdx);
+                });
+                q.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            applyGridLayoutAndRotation(); 
+        }
+        
+        function applyGridLayoutAndRotation() {
+            let gridCols = "1fr", gridRows = "1fr";
+            let currentRotations = Array(numPlayers).fill(false); 
+            visualToLogicalMap = []; 
+
+            playerElements.forEach(el => {
+                if(el) el.style.gridArea = ''; 
+            });
+            
+            switch (numPlayers) {
+                case 1: 
+                    visualToLogicalMap = [0]; 
+                    gridCols = "1fr"; gridRows = "1fr";
+                    break;
+                case 2: 
+                    visualToLogicalMap = [0, 1]; 
+                    gridCols = "1fr"; gridRows = "1fr 1fr"; 
+                    break; 
+                case 3: 
+                    visualToLogicalMap = [0, 1, 2]; 
+                    gridCols = "1fr 1fr"; gridRows = "1fr 1fr";
+                    if (playerElements[0]) playerElements[0].style.gridArea = "1 / 1 / 2 / 2"; 
+                    if (playerElements[1]) playerElements[1].style.gridArea = "1 / 2 / 2 / 3"; 
+                    if (playerElements[2]) playerElements[2].style.gridArea = "2 / 1 / 3 / 3"; 
+                    break;
+                case 4: 
+                    visualToLogicalMap = [0, 1, 3, 2]; 
+                    gridCols = "1fr 1fr"; gridRows = "1fr 1fr"; 
+                    break;
+                case 5: 
+                    visualToLogicalMap = [0, 1, 4, 3, 2]; 
+                    gridCols = "repeat(6, 1fr)"; gridRows = "1fr 1fr";
+                    if(playerElements[0]) playerElements[0].style.gridArea = "1 / 1 / 2 / 4"; 
+                    if(playerElements[1]) playerElements[1].style.gridArea = "1 / 4 / 2 / 7"; 
+                    if(playerElements[2]) playerElements[2].style.gridArea = "2 / 1 / 3 / 3"; 
+                    if(playerElements[3]) playerElements[3].style.gridArea = "2 / 3 / 3 / 5"; 
+                    if(playerElements[4]) playerElements[4].style.gridArea = "2 / 5 / 3 / 7"; 
+                    break;
+                case 6: 
+                    visualToLogicalMap = [0, 1, 2, 5, 4, 3]; 
+                    gridCols = "1fr 1fr 1fr"; gridRows = "1fr 1fr"; 
+                    break;
+                case 7: 
+                    visualToLogicalMap = [0, 1, 2, 3, 6, 5, 4]; 
+                    gridCols = "repeat(12, 1fr)"; gridRows = "1fr 1fr"; 
+                    if(playerElements[0]) playerElements[0].style.gridArea = "1 / 1 / 2 / 4";   
+                    if(playerElements[1]) playerElements[1].style.gridArea = "1 / 4 / 2 / 7";   
+                    if(playerElements[2]) playerElements[2].style.gridArea = "1 / 7 / 2 / 10";  
+                    if(playerElements[3]) playerElements[3].style.gridArea = "1 / 10 / 2 / 13"; 
+                    if(playerElements[4]) playerElements[4].style.gridArea = "2 / 1 / 3 / 5";   
+                    if(playerElements[5]) playerElements[5].style.gridArea = "2 / 5 / 3 / 9";   
+                    if(playerElements[6]) playerElements[6].style.gridArea = "2 / 9 / 3 / 13";  
+                    break;
+                case 8: 
+                    visualToLogicalMap = [0, 1, 2, 3, 7, 6, 5, 4]; 
+                    gridCols = "repeat(4, 1fr)"; gridRows = "1fr 1fr"; 
+                    break;
+            }
+            clockContainer.style.gridTemplateColumns = gridCols;
+            clockContainer.style.gridTemplateRows = gridRows;
+
+            for (let visualSlotIndex = 0; visualSlotIndex < numPlayers; visualSlotIndex++) {
+                const logicalPlayerId = visualToLogicalMap[visualSlotIndex]; 
+                let shouldRotate = false;
+                const playerNumber = logicalPlayerId + 1; 
+
+                switch (numPlayers) {
+                    case 1: break; 
+                    case 2: if (playerNumber === 1) shouldRotate = true; break;
+                    case 3: if (playerNumber === 1 || playerNumber === 2) shouldRotate = true; break;
+                    case 4: if (playerNumber === 1 || playerNumber === 2) shouldRotate = true; break;
+                    case 5: if (playerNumber >= 1 && playerNumber <= 3) shouldRotate = true; break;
+                    case 6: if (playerNumber >= 1 && playerNumber <= 3) shouldRotate = true; break;
+                    case 7: if (playerNumber >= 1 && playerNumber <= 4) shouldRotate = true; break;
+                    case 8: if (playerNumber >= 1 && playerNumber <= 4) shouldRotate = true; break;
+                }
+                currentRotations[visualSlotIndex] = shouldRotate;
+            }
+
+            for (let visualSlotIndex = 0; visualSlotIndex < numPlayers; visualSlotIndex++) {
+                const qElement = playerElements[visualSlotIndex];
+                if (!qElement) continue;
+
+                const logicalPlayerIndex = visualToLogicalMap[visualSlotIndex];
+                qElement.dataset.playerIndex = logicalPlayerIndex; 
+
+                const config = playerConfigs[logicalPlayerIndex];
+                if (config) {
+                    const nameSpan = qElement.querySelector('.player-name');
+                    if (nameSpan) nameSpan.textContent = config.name;
+
+                    if (config.cssVarStart && config.cssVarEnd) {
+                        qElement.style.backgroundImage = `linear-gradient(135deg, var(${config.cssVarStart}), var(${config.cssVarEnd}))`;
+                        rootStyle.setProperty(config.cssVarStart, config.colorStart);
+                        rootStyle.setProperty(config.cssVarEnd, config.colorEnd);
+                    } else {
+                        qElement.style.backgroundImage = `linear-gradient(135deg, ${config.colorStart}, ${config.colorEnd})`;
+                    }
+                }
+                qElement.classList.toggle('rotate-180', currentRotations[visualSlotIndex]);
+            }
+        }
+
 
         function resetGame() {
             stopAllTimers();
-            playerTimes = Array(MAX_PLAYERS).fill(initialBaseTimeMinutes * 60);
+            
+             while(playerConfigs.length < numPlayers) {
+                const nextIndex = playerConfigs.length;
+                const baseConf = nextIndex < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[nextIndex] : {};
+                playerConfigs.push({
+                    name: `Player ${nextIndex + 1}`,
+                    colorStart: baseConf.colorStart || generateRandomHexColor(),
+                    colorEnd: baseConf.colorEnd || generateRandomHexColor(),
+                    cssVarStart: baseConf.cssVarStart, 
+                    cssVarEnd: baseConf.cssVarEnd
+                });
+            }
+            playerConfigs = playerConfigs.slice(0, numPlayers); 
+
+            playerTimes = Array(numPlayers).fill(isCountUpMode ? 0 : initialBaseTimeMinutes * 60);
+            longPressTimers = Array(numPlayers).fill(null);
+            longPressActionTakenFlags = Array(numPlayers).fill(false);
+            playerTurnStartTimestamps = Array(numPlayers).fill(null);
+
             activePlayerIndex = -1; 
             currentTurnPlayerIndex = 0; 
+            mainTurnHolderIndex = 0; 
             isPaused = true;
-            fullscreenAttemptedInLandscape = false; // Reset this flag too
+            fullscreenAttemptedInLandscape = false;
             gameHasStartedOnce = false; 
-            longPressTimers.forEach((_, i) => clearTimeout(longPressTimers[i])); // Clear any active long press timeouts
-            longPressTimers = [null, null, null, null];
-            longPressActionTakenFlags = [false, false, false, false]; 
-            playerTurnStartTimestamps.fill(null);
-            mainTurnHolderIndex = 0; // Player 1 starts as the main turn holder
+            
+            setupQuadrantsAndDOM(); 
 
-            document.querySelectorAll('.quadrant').forEach(q => {
+            playerElements.forEach(q => { 
                 q.classList.remove('timed-out-player', 'active', 'timeout-flash-animation', 'long-pressing', 'yellow-warning', 'red-warning');
-                const logicalIndex = parseInt(q.dataset.playerIndex);
-                
-                // Apply background color from playerOriginalBg which was set in applyAndResetGame
-                if (playerOriginalBg[logicalIndex] && playerOriginalBg[logicalIndex].startsWith('linear-gradient')) {
-                     q.style.backgroundImage = playerOriginalBg[logicalIndex];
-                } else {
-                    // Fallback if playerOriginalBg wasn't set (e.g. on initial load before settings applied)
-                    // This part should ideally not be needed if loadSettings calls applyAndResetGame
-                    console.warn(`playerOriginalBg invalid or not set for player ${logicalIndex}. Using CSS variables from config.`);
-                    const conf = DEFAULT_PLAYER_CONFIGS.find(p => p.cssVarStart.includes(`p${logicalIndex+1}-`)); // Find config by index
-                    if (conf) {
-                         q.style.backgroundImage = `linear-gradient(135deg, var(${conf.cssVarStart}), var(${conf.cssVarEnd}))`;
-                    } else {
-                         q.style.backgroundImage = ''; // Default or error state
-                    }
-                }
-
-                const nameSpan = q.querySelector('.player-name');
-                if (nameSpan) nameSpan.textContent = playerNames[logicalIndex]; // playerNames is updated by applyAndResetGame
             });
+            
             updateDisplay();
         }
         
@@ -1146,46 +1361,104 @@
 
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
+                
+                numPlayersInput.value = settings.numPlayers !== undefined ? settings.numPlayers : 4;
+                numPlayers = parseInt(numPlayersInput.value);
+
                 initialBaseTimeInput.value = (settings.initialBaseTime && parseInt(settings.initialBaseTime) >= 1) ? 
                                          parseInt(settings.initialBaseTime) : DEFAULT_INITIAL_BASE_MINUTES;
                 timeAdditionSecondsInput.value = (settings.timeAdditionSeconds !== undefined && !isNaN(parseInt(settings.timeAdditionSeconds)) && parseInt(settings.timeAdditionSeconds) >= 0) ?
                                                  parseInt(settings.timeAdditionSeconds) : DEFAULT_INITIAL_ADDITION_SECONDS;
                 
-                for (let i = 0; i < MAX_PLAYERS; i++) {
-                    const config = DEFAULT_PLAYER_CONFIGS[i]; // Use default as fallback
-                    playerNameInputs[i].value = settings[`p${i+1}Name`] || config.name;
-                    // Ensure color values are valid hex codes
-                    colorStartInputs[i].value = (settings[`p${i+1}ColorStart`] && /^#[0-9A-F]{6}$/i.test(settings[`p${i+1}ColorStart`])) ? settings[`p${i+1}ColorStart`] : config.colorStart;
-                    colorEndInputs[i].value = (settings[`p${i+1}ColorEnd`] && /^#[0-9A-F]{6}$/i.test(settings[`p${i+1}ColorEnd`])) ? settings[`p${i+1}ColorEnd`] : config.colorEnd;
+                countUpToggle.checked = settings.isCountUpMode === true;
+                isCountUpMode = countUpToggle.checked; 
+                
+                playerConfigs = [];
+                if (settings.playerConfigs && Array.isArray(settings.playerConfigs)) {
+                    const configsToLoad = settings.playerConfigs.slice(0, numPlayers);
+                    for (let i = 0; i < numPlayers; i++) { 
+                        const savedPc = configsToLoad[i]; 
+                        const basePc = i < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[i] : {};
+                        playerConfigs.push({
+                            name: (savedPc && savedPc.name) ? savedPc.name : `Player ${i + 1}`,
+                            colorStart: (savedPc && savedPc.colorStart) ? savedPc.colorStart : (basePc.colorStart || generateRandomHexColor()),
+                            colorEnd: (savedPc && savedPc.colorEnd) ? savedPc.colorEnd : (basePc.colorEnd || generateRandomHexColor()),
+                            cssVarStart: basePc.cssVarStart, 
+                            cssVarEnd: basePc.cssVarEnd
+                        });
+                    }
+                } else { 
+                    for (let i = 0; i < numPlayers; i++) {
+                        const basePc = i < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[i] : {};
+                        playerConfigs.push({
+                            name: `Player ${i + 1}`,
+                            colorStart: basePc.colorStart || generateRandomHexColor(),
+                            colorEnd: basePc.colorEnd || generateRandomHexColor(),
+                            cssVarStart: basePc.cssVarStart,
+                            cssVarEnd: basePc.cssVarEnd
+                        });
+                    }
                 }
-                longTurnWarningToggle.checked = settings.longTurnWarningEnabled === true; // Explicit boolean check
+                while(playerConfigs.length < numPlayers) {
+                    const idx = playerConfigs.length;
+                    const base = idx < BASE_DEFAULT_PLAYER_CONFIGS.length ? BASE_DEFAULT_PLAYER_CONFIGS[idx] : {};
+                    playerConfigs.push({
+                        name: `Player ${idx + 1}`,
+                        colorStart: base.colorStart || generateRandomHexColor(),
+                        colorEnd: base.colorEnd || generateRandomHexColor(),
+                        cssVarStart: base.cssVarStart, cssVarEnd: base.cssVarEnd
+                    });
+                }
+                if(playerConfigs.length > numPlayers) playerConfigs = playerConfigs.slice(0, numPlayers);
+
+
+                longTurnWarningToggle.checked = settings.longTurnWarningEnabled === true; 
                 lowTimeWarningToggle.checked = settings.lowTimeWarningEnabled === true;
+                if (isCountUpMode) { 
+                    lowTimeWarningToggle.checked = false;
+                    lowTimeWarningToggle.disabled = true;
+                    initialBaseTimeInput.disabled = true;
+                } else {
+                    lowTimeWarningToggle.disabled = false;
+                    initialBaseTimeInput.disabled = false;
+                }
+
                 fullRotationIncrementToggle.checked = settings.fullRotationIncrementEnabled === true;             
 
-            } else { // No saved settings, use defaults
+            } else { 
+                numPlayersInput.value = 4;
+                numPlayers = 4;
                 initialBaseTimeInput.value = DEFAULT_INITIAL_BASE_MINUTES;
                 timeAdditionSecondsInput.value = DEFAULT_INITIAL_ADDITION_SECONDS;
-                for (let i = 0; i < MAX_PLAYERS; i++) {
-                    const config = DEFAULT_PLAYER_CONFIGS[i];
-                    playerNameInputs[i].value = config.name;
-                    colorStartInputs[i].value = config.colorStart;
-                    colorEndInputs[i].value = config.colorEnd;
+                countUpToggle.checked = false;
+                isCountUpMode = false;
+                
+                playerConfigs = [];
+                 for (let i = 0; i < numPlayers; i++) { 
+                    const basePc = BASE_DEFAULT_PLAYER_CONFIGS[i]; 
+                    playerConfigs.push({ ...basePc }); 
                 }
-                longTurnWarningToggle.checked = false; // Default for warnings
+
+                longTurnWarningToggle.checked = false; 
                 lowTimeWarningToggle.checked = false;
-                fullRotationIncrementToggle.checked = false; // Default for full rotation increment
+                fullRotationIncrementToggle.checked = false; 
+                lowTimeWarningToggle.disabled = false;
+                initialBaseTimeInput.disabled = false;
             }
-            // Apply these loaded/default settings and reset the game state
+            
+            setupPlayerSettingsUI(numPlayers); 
             applyAndResetGame(); 
         }
 
-        settingsToggleButton.addEventListener('click', () => { settingsModal.style.display = 'flex'; });
+        settingsToggleButton.addEventListener('click', () => { 
+            setupPlayerSettingsUI(parseInt(numPlayersInput.value)); 
+            settingsModal.style.display = 'flex'; 
+        });
         closeSettingsButton.addEventListener('click', () => { settingsModal.style.display = 'none'; });
         applySettingsButton.addEventListener('click', () => { 
             applyAndResetGame(); 
             settingsModal.style.display = 'none'; 
         });
-        // Close modal if clicking outside the content
         window.addEventListener('click', (event) => { 
             if (event.target == settingsModal) {
                 settingsModal.style.display = 'none'; 
@@ -1193,8 +1466,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSettings(); // This will also call applyAndResetGame and resetGame internally
-            // Corrected Low Time Warning label for consistency with JS constant
+            loadSettings(); 
             const lowTimeWarningLabel = document.querySelector('label[for="low-time-warning-toggle"]');
             if(lowTimeWarningLabel) {
                 lowTimeWarningLabel.textContent = `Enable Low Total Time Warning (< ${LOW_TIME_PERCENTAGE_THRESHOLD * 100}% of initial)`;
