@@ -497,6 +497,8 @@
         let isCountUpMode = false;          
 
         let wakeLock = null;
+        let usingWakeLockAPI = ('wakeLock' in navigator);
+        let wakeLockVideo = null; 
 
         let playerElements = []; 
         let timeDisplayElements = [];
@@ -508,32 +510,45 @@
 
 
         const requestWakeLock = async () => {
-            if ('wakeLock' in navigator) {
+            if (usingWakeLockAPI) {
                 try {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => {
-                        wakeLock = null;
-                    });
+                    if (wakeLock === null) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLock.addEventListener('release', () => {
+                            wakeLock = null;
+                        });
+                    }
                 } catch (err) {
-                    console.error(`${err.name}, ${err.message}`);
+                    console.error(`Wake Lock API failed: ${err.name}, ${err.message}. Falling back to video method.`);
+                    usingWakeLockAPI = false; 
+                    await requestWakeLock();
+                }
+            } else if (wakeLockVideo && wakeLockVideo.paused) {
+                try {
+                    await wakeLockVideo.play();
+                } catch(err) {
+                    console.error("Wake lock video fallback failed to play:", err);
                 }
             }
         };
 
         const releaseWakeLock = async () => {
-            if (wakeLock !== null) {
-                await wakeLock.release();
-                wakeLock = null;
+            if (usingWakeLockAPI) {
+                if (wakeLock !== null) {
+                    await wakeLock.release();
+                    wakeLock = null;
+                }
+            } else if (wakeLockVideo && !wakeLockVideo.paused) {
+                wakeLockVideo.pause();
             }
         };
 
-        const handleVisibilityChange = async () => {
-            if (wakeLock === null && document.visibilityState === 'visible' && !isPaused && activePlayerIndex !== -1) {
-               await requestWakeLock();
+        const handleVisibilityChange = () => {
+            if (usingWakeLockAPI && document.visibilityState === 'visible' && !isPaused && activePlayerIndex !== -1) {
+                requestWakeLock();
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
-
 
         let audioContext;
         function initAudioContext() {
@@ -854,6 +869,7 @@
                     } else {
                         isPaused = true;
                         activePlayerIndex = -1;
+                        releaseWakeLock();
                     }
                     updateDisplay();
                 } else {
@@ -1502,6 +1518,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
+            wakeLockVideo = document.getElementById('wakeLockVideo');
             loadSettings(); 
             const lowTimeWarningLabel = document.querySelector('label[for="low-time-warning-toggle"]');
             if(lowTimeWarningLabel) {
@@ -1509,5 +1526,8 @@
             }
         });
     </script>
+    <video id="wakeLockVideo" loop muted playsinline style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;" aria-hidden="true">
+        <source src="data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYU4BnQI0VSalmBwgAAAAImJMBAwAAAAAAIAA2AIAhAYoBAAIAQAgAAAAAAABZU4BuAQAAAAAAAKAAAhgxgwFC8oUIkAQEAEiRAQEADIgAIQkECgACAAABAAIAgAAAAAIAAwAIBAQGCAgIBgYICAoLAhAYGAQEDAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA=" type="video/webm">
+    </video>
 </body>
 </html>
