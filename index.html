@@ -496,6 +496,8 @@
         let mainTurnHolderIndex = 0;   
         let isCountUpMode = false;          
 
+        let wakeLock = null;
+
         let playerElements = []; 
         let timeDisplayElements = [];
         let playerNameSpans = [];
@@ -503,6 +505,34 @@
         let dynColorStartInputs = [];
         let dynColorEndInputs = [];
         let visualToLogicalMap = []; 
+
+
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        wakeLock = null;
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        };
+
+        const releaseWakeLock = async () => {
+            if (wakeLock !== null) {
+                await wakeLock.release();
+                wakeLock = null;
+            }
+        };
+
+        const handleVisibilityChange = async () => {
+            if (wakeLock === null && document.visibilityState === 'visible' && !isPaused && activePlayerIndex !== -1) {
+               await requestWakeLock();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
         let audioContext;
@@ -739,6 +769,7 @@
                 } else {
                     isPaused = true;
                     activePlayerIndex = -1;
+                    releaseWakeLock();
                 }
             }
             updateDisplay(); // Update general display
@@ -775,6 +806,7 @@
                 } else {
                     isPaused = true;
                     activePlayerIndex = -1;
+                    releaseWakeLock();
                 }
             }
             updateDisplay(); // Update general display
@@ -790,6 +822,7 @@
             activePlayerIndex = logicalPlayerIndex;
             currentTurnPlayerIndex = logicalPlayerIndex; 
             isPaused = false; 
+            requestWakeLock();
             
             playerTurnStartTimestamps = playerTurnStartTimestamps.map(() => null); 
             playerTurnStartTimestamps[logicalPlayerIndex] = performance.now();
@@ -871,6 +904,7 @@
             } else {
                 isPaused = true;
                 activePlayerIndex = -1; 
+                releaseWakeLock();
             }
             updateDisplay(); 
         }
@@ -987,6 +1021,7 @@
             } else { 
                 isPaused = true;
                 stopAllTimers(); 
+                releaseWakeLock();
                 updateDisplay(); 
                 playBeep(300, 0.08, 'triangle', 0.2);
             }
@@ -1321,6 +1356,7 @@
 
         function resetGame() {
             stopAllTimers();
+            releaseWakeLock();
             
              while(playerConfigs.length < numPlayers) {
                 const nextIndex = playerConfigs.length;
